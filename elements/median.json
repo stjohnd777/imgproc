@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "median",
+  "name": "Median",
+  "kind": "transform",
+  "category": "filter",
+  "icon": "transform",
+  "summary": "Median blur: removes salt-and-pepper noise while keeping edges sharper than a Gaussian.",
+  "inputs": [
+    { "name": "image", "type": "image" }
+  ],
+  "outputs": [
+    { "name": "image", "type": "image" }
+  ],
+  "params": {
+    "ksize": { "type": "number", "default": 5, "min": 3, "max": 31, "step": 2, "description": "Odd kernel size." }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-median/build/median_cli",
+    "args": ["{in.image}", "{out.image}", "{param.ksize}"]
+  }
+}

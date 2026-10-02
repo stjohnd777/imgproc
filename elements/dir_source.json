@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "dir_source",
+  "name": "Image Directory",
+  "kind": "source",
+  "icon": "folder",
+  "summary": "Emits the images in a directory, one per frame.",
+  "inputs": [],
+  "outputs": [
+    { "name": "image", "type": "image" }
+  ],
+  "params": {
+    "dir": {
+      "type": "folder",
+      "label": "Source folder",
+      "default": null,
+      "description": "Images are read from this folder, in name order."
+    },
+    "fps": { "type": "number", "label": "Frames per second", "default": 30, "min": 1, "max": 240, "step": 1 },
+    "loop": { "type": "boolean", "label": "Loop", "default": false }
+  },
+  "telemetry": [],
+  "exec": { "builtin": "dir_source" }
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "kaze",
+  "name": "KAZE",
+  "kind": "transform",
+  "category": "feature",
+  "icon": "transform",
+  "summary": "KAZE keypoint detector. Outputs keypoint JSON and an annotated preview image.",
+  "inputs": [
+    {
+      "name": "image",
+      "type": "image"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "preview",
+      "type": "image"
+    },
+    {
+      "name": "keypoints",
+      "type": "keypoints"
+    }
+  ],
+  "params": {
+    "threshold": {
+      "type": "number",
+      "default": 0.001,
+      "min": 0,
+      "max": 1,
+      "step": 0.001
+    },
+    "nOctaves": {
+      "type": "number",
+      "default": 4,
+      "min": 1,
+      "max": 8,
+      "step": 1
+    },
+    "nOctaveLayers": {
+      "type": "number",
+      "default": 4,
+      "min": 1,
+      "max": 8,
+      "step": 1
+    }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-kaze/build/kaze_cli",
+    "args": [
+      "{in.image}",
+      "{out.preview}",
+      "{out.keypoints}",
+      "{param.threshold}",
+      "{param.nOctaves}",
+      "{param.nOctaveLayers}"
+    ]
+  }
+}

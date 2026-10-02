@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "contours",
+  "name": "Contours",
+  "kind": "transform",
+  "category": "filter",
+  "icon": "transform",
+  "summary": "External contours found from Canny edges, drawn in green over the source image.",
+  "inputs": [
+    {
+      "name": "image",
+      "type": "image"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "image",
+      "type": "image"
+    }
+  ],
+  "params": {
+    "low": {
+      "type": "number",
+      "default": 80,
+      "min": 0,
+      "max": 255,
+      "step": 1
+    },
+    "high": {
+      "type": "number",
+      "default": 180,
+      "min": 0,
+      "max": 255,
+      "step": 1
+    },
+    "thickness": {
+      "type": "number",
+      "default": 2,
+      "min": 1,
+      "max": 20,
+      "step": 1
+    },
+    "externalOnly": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-contours/build/contours_cli",
+    "args": [
+      "{in.image}",
+      "{out.image}",
+      "{param.low}",
+      "{param.high}",
+      "{param.thickness}",
+      "{param.externalOnly}"
+    ]
+  }
+}

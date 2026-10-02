@@ -1,0 +1,1446 @@
+{
+  "metadata": {
+    "name": "ingress",
+    "targetModel": "Cassini-Huygens (A).glb",
+    "sun": {
+      "azimuth_deg": 180.0,
+      "elevation_deg": 0.0,
+      "apparent_diameter_deg": 0.533,
+      "energy": 5.0,
+      "temperature_k": 5778.0
+    },
+    "camera": {
+      "name": "Blackfly BFLY-PGE-13S2M-CS",
+      "resolution": {
+        "width": 1288,
+        "height": 964
+      },
+      "focalLengthMm": 12.0,
+      "sensorWidthMm": 4.83,
+      "fx_pixels": 3200.0,
+      "baselineMm": 120.0
+    },
+    "trajectory": {
+      "startDistanceMeters": 100.0,
+      "endDistanceMeters": 9.5,
+      "stepMeters": 0.45,
+      "totalFrames": 202
+    }
+  },
+  "frames": [
+    {
+      "frame": 1,
+      "distanceMeters": 100.0,
+      "theoreticalCenterDisparityPx": 3.84,
+      "leftImage": "left/frame_0001.png",
+      "rightImage": "right/frame_0001.png"
+    },
+    {
+      "frame": 2,
+      "distanceMeters": 99.55,
+      "theoreticalCenterDisparityPx": 3.857,
+      "leftImage": "left/frame_0002.png",
+      "rightImage": "right/frame_0002.png"
+    },
+    {
+      "frame": 3,
+      "distanceMeters": 99.1,
+      "theoreticalCenterDisparityPx": 3.875,
+      "leftImage": "left/frame_0003.png",
+      "rightImage": "right/frame_0003.png"
+    },
+    {
+      "frame": 4,
+      "distanceMeters": 98.65,
+      "theoreticalCenterDisparityPx": 3.893,
+      "leftImage": "left/frame_0004.png",
+      "rightImage": "right/frame_0004.png"
+    },
+    {
+      "frame": 5,
+      "distanceMeters": 98.2,
+      "theoreticalCenterDisparityPx": 3.91,
+      "leftImage": "left/frame_0005.png",
+      "rightImage": "right/frame_0005.png"
+    },
+    {
+      "frame": 6,
+      "distanceMeters": 97.75,
+      "theoreticalCenterDisparityPx": 3.928,
+      "leftImage": "left/frame_0006.png",
+      "rightImage": "right/frame_0006.png"
+    },
+    {
+      "frame": 7,
+      "distanceMeters": 97.3,
+      "theoreticalCenterDisparityPx": 3.947,
+      "leftImage": "left/frame_0007.png",
+      "rightImage": "right/frame_0007.png"
+    },
+    {
+      "frame": 8,
+      "distanceMeters": 96.85,
+      "theoreticalCenterDisparityPx": 3.965,
+      "leftImage": "left/frame_0008.png",
+      "rightImage": "right/frame_0008.png"
+    },
+    {
+      "frame": 9,
+      "distanceMeters": 96.4,
+      "theoreticalCenterDisparityPx": 3.983,
+      "leftImage": "left/frame_0009.png",
+      "rightImage": "right/frame_0009.png"
+    },
+    {
+      "frame": 10,
+      "distanceMeters": 95.95,
+      "theoreticalCenterDisparityPx": 4.002,
+      "leftImage": "left/frame_0010.png",
+      "rightImage": "right/frame_0010.png"
+    },
+    {
+      "frame": 11,
+      "distanceMeters": 95.5,
+      "theoreticalCenterDisparityPx": 4.021,
+      "leftImage": "left/frame_0011.png",
+      "rightImage": "right/frame_0011.png"
+    },
+    {
+      "frame": 12,
+      "distanceMeters": 95.05,
+      "theoreticalCenterDisparityPx": 4.04,
+      "leftImage": "left/frame_0012.png",
+      "rightImage": "right/frame_0012.png"
+    },
+    {
+      "frame": 13,
+      "distanceMeters": 94.6,
+      "theoreticalCenterDisparityPx": 4.059,
+      "leftImage": "left/frame_0013.png",
+      "rightImage": "right/frame_0013.png"
+    },
+    {
+      "frame": 14,
+      "distanceMeters": 94.15,
+      "theoreticalCenterDisparityPx": 4.079,
+      "leftImage": "left/frame_0014.png",
+      "rightImage": "right/frame_0014.png"
+    },
+    {
+      "frame": 15,
+      "distanceMeters": 93.7,
+      "theoreticalCenterDisparityPx": 4.098,
+      "leftImage": "left/frame_0015.png",
+      "rightImage": "right/frame_0015.png"
+    },
+    {
+      "frame": 16,
+      "distanceMeters": 93.25,
+      "theoreticalCenterDisparityPx": 4.118,
+      "leftImage": "left/frame_0016.png",
+      "rightImage": "right/frame_0016.png"
+    },
+    {
+      "frame": 17,
+      "distanceMeters": 92.8,
+      "theoreticalCenterDisparityPx": 4.138,
+      "leftImage": "left/frame_0017.png",
+      "rightImage": "right/frame_0017.png"
+    },
+    {
+      "frame": 18,
+      "distanceMeters": 92.35,
+      "theoreticalCenterDisparityPx": 4.158,
+      "leftImage": "left/frame_0018.png",
+      "rightImage": "right/frame_0018.png"
+    },
+    {
+      "frame": 19,
+      "distanceMeters": 91.9,
+      "theoreticalCenterDisparityPx": 4.178,
+      "leftImage": "left/frame_0019.png",
+      "rightImage": "right/frame_0019.png"
+    },
+    {
+      "frame": 20,
+      "distanceMeters": 91.45,
+      "theoreticalCenterDisparityPx": 4.199,
+      "leftImage": "left/frame_0020.png",
+      "rightImage": "right/frame_0020.png"
+    },
+    {
+      "frame": 21,
+      "distanceMeters": 91.0,
+      "theoreticalCenterDisparityPx": 4.22,
+      "leftImage": "left/frame_0021.png",
+      "rightImage": "right/frame_0021.png"
+    },
+    {
+      "frame": 22,
+      "distanceMeters": 90.55,
+      "theoreticalCenterDisparityPx": 4.241,
+      "leftImage": "left/frame_0022.png",
+      "rightImage": "right/frame_0022.png"
+    },
+    {
+      "frame": 23,
+      "distanceMeters": 90.1,
+      "theoreticalCenterDisparityPx": 4.262,
+      "leftImage": "left/frame_0023.png",
+      "rightImage": "right/frame_0023.png"
+    },
+    {
+      "frame": 24,
+      "distanceMeters": 89.65,
+      "theoreticalCenterDisparityPx": 4.283,
+      "leftImage": "left/frame_0024.png",
+      "rightImage": "right/frame_0024.png"
+    },
+    {
+      "frame": 25,
+      "distanceMeters": 89.2,
+      "theoreticalCenterDisparityPx": 4.305,
+      "leftImage": "left/frame_0025.png",
+      "rightImage": "right/frame_0025.png"
+    },
+    {
+      "frame": 26,
+      "distanceMeters": 88.75,
+      "theoreticalCenterDisparityPx": 4.327,
+      "leftImage": "left/frame_0026.png",
+      "rightImage": "right/frame_0026.png"
+    },
+    {
+      "frame": 27,
+      "distanceMeters": 88.3,
+      "theoreticalCenterDisparityPx": 4.349,
+      "leftImage": "left/frame_0027.png",
+      "rightImage": "right/frame_0027.png"
+    },
+    {
+      "frame": 28,
+      "distanceMeters": 87.85,
+      "theoreticalCenterDisparityPx": 4.371,
+      "leftImage": "left/frame_0028.png",
+      "rightImage": "right/frame_0028.png"
+    },
+    {
+      "frame": 29,
+      "distanceMeters": 87.4,
+      "theoreticalCenterDisparityPx": 4.394,
+      "leftImage": "left/frame_0029.png",
+      "rightImage": "right/frame_0029.png"
+    },
+    {
+      "frame": 30,
+      "distanceMeters": 86.95,
+      "theoreticalCenterDisparityPx": 4.416,
+      "leftImage": "left/frame_0030.png",
+      "rightImage": "right/frame_0030.png"
+    },
+    {
+      "frame": 31,
+      "distanceMeters": 86.5,
+      "theoreticalCenterDisparityPx": 4.439,
+      "leftImage": "left/frame_0031.png",
+      "rightImage": "right/frame_0031.png"
+    },
+    {
+      "frame": 32,
+      "distanceMeters": 86.05,
+      "theoreticalCenterDisparityPx": 4.463,
+      "leftImage": "left/frame_0032.png",
+      "rightImage": "right/frame_0032.png"
+    },
+    {
+      "frame": 33,
+      "distanceMeters": 85.6,
+      "theoreticalCenterDisparityPx": 4.486,
+      "leftImage": "left/frame_0033.png",
+      "rightImage": "right/frame_0033.png"
+    },
+    {
+      "frame": 34,
+      "distanceMeters": 85.15,
+      "theoreticalCenterDisparityPx": 4.51,
+      "leftImage": "left/frame_0034.png",
+      "rightImage": "right/frame_0034.png"
+    },
+    {
+      "frame": 35,
+      "distanceMeters": 84.7,
+      "theoreticalCenterDisparityPx": 4.534,
+      "leftImage": "left/frame_0035.png",
+      "rightImage": "right/frame_0035.png"
+    },
+    {
+      "frame": 36,
+      "distanceMeters": 84.25,
+      "theoreticalCenterDisparityPx": 4.558,
+      "leftImage": "left/frame_0036.png",
+      "rightImage": "right/frame_0036.png"
+    },
+    {
+      "frame": 37,
+      "distanceMeters": 83.8,
+      "theoreticalCenterDisparityPx": 4.582,
+      "leftImage": "left/frame_0037.png",
+      "rightImage": "right/frame_0037.png"
+    },
+    {
+      "frame": 38,
+      "distanceMeters": 83.35,
+      "theoreticalCenterDisparityPx": 4.607,
+      "leftImage": "left/frame_0038.png",
+      "rightImage": "right/frame_0038.png"
+    },
+    {
+      "frame": 39,
+      "distanceMeters": 82.9,
+      "theoreticalCenterDisparityPx": 4.632,
+      "leftImage": "left/frame_0039.png",
+      "rightImage": "right/frame_0039.png"
+    },
+    {
+      "frame": 40,
+      "distanceMeters": 82.45,
+      "theoreticalCenterDisparityPx": 4.657,
+      "leftImage": "left/frame_0040.png",
+      "rightImage": "right/frame_0040.png"
+    },
+    {
+      "frame": 41,
+      "distanceMeters": 82.0,
+      "theoreticalCenterDisparityPx": 4.683,
+      "leftImage": "left/frame_0041.png",
+      "rightImage": "right/frame_0041.png"
+    },
+    {
+      "frame": 42,
+      "distanceMeters": 81.55,
+      "theoreticalCenterDisparityPx": 4.709,
+      "leftImage": "left/frame_0042.png",
+      "rightImage": "right/frame_0042.png"
+    },
+    {
+      "frame": 43,
+      "distanceMeters": 81.1,
+      "theoreticalCenterDisparityPx": 4.735,
+      "leftImage": "left/frame_0043.png",
+      "rightImage": "right/frame_0043.png"
+    },
+    {
+      "frame": 44,
+      "distanceMeters": 80.65,
+      "theoreticalCenterDisparityPx": 4.761,
+      "leftImage": "left/frame_0044.png",
+      "rightImage": "right/frame_0044.png"
+    },
+    {
+      "frame": 45,
+      "distanceMeters": 80.2,
+      "theoreticalCenterDisparityPx": 4.788,
+      "leftImage": "left/frame_0045.png",
+      "rightImage": "right/frame_0045.png"
+    },
+    {
+      "frame": 46,
+      "distanceMeters": 79.75,
+      "theoreticalCenterDisparityPx": 4.815,
+      "leftImage": "left/frame_0046.png",
+      "rightImage": "right/frame_0046.png"
+    },
+    {
+      "frame": 47,
+      "distanceMeters": 79.3,
+      "theoreticalCenterDisparityPx": 4.842,
+      "leftImage": "left/frame_0047.png",
+      "rightImage": "right/frame_0047.png"
+    },
+    {
+      "frame": 48,
+      "distanceMeters": 78.85,
+      "theoreticalCenterDisparityPx": 4.87,
+      "leftImage": "left/frame_0048.png",
+      "rightImage": "right/frame_0048.png"
+    },
+    {
+      "frame": 49,
+      "distanceMeters": 78.4,
+      "theoreticalCenterDisparityPx": 4.898,
+      "leftImage": "left/frame_0049.png",
+      "rightImage": "right/frame_0049.png"
+    },
+    {
+      "frame": 50,
+      "distanceMeters": 77.95,
+      "theoreticalCenterDisparityPx": 4.926,
+      "leftImage": "left/frame_0050.png",
+      "rightImage": "right/frame_0050.png"
+    },
+    {
+      "frame": 51,
+      "distanceMeters": 77.5,
+      "theoreticalCenterDisparityPx": 4.955,
+      "leftImage": "left/frame_0051.png",
+      "rightImage": "right/frame_0051.png"
+    },
+    {
+      "frame": 52,
+      "distanceMeters": 77.05,
+      "theoreticalCenterDisparityPx": 4.984,
+      "leftImage": "left/frame_0052.png",
+      "rightImage": "right/frame_0052.png"
+    },
+    {
+      "frame": 53,
+      "distanceMeters": 76.6,
+      "theoreticalCenterDisparityPx": 5.013,
+      "leftImage": "left/frame_0053.png",
+      "rightImage": "right/frame_0053.png"
+    },
+    {
+      "frame": 54,
+      "distanceMeters": 76.15,
+      "theoreticalCenterDisparityPx": 5.043,
+      "leftImage": "left/frame_0054.png",
+      "rightImage": "right/frame_0054.png"
+    },
+    {
+      "frame": 55,
+      "distanceMeters": 75.7,
+      "theoreticalCenterDisparityPx": 5.073,
+      "leftImage": "left/frame_0055.png",
+      "rightImage": "right/frame_0055.png"
+    },
+    {
+      "frame": 56,
+      "distanceMeters": 75.25,
+      "theoreticalCenterDisparityPx": 5.103,
+      "leftImage": "left/frame_0056.png",
+      "rightImage": "right/frame_0056.png"
+    },
+    {
+      "frame": 57,
+      "distanceMeters": 74.8,
+      "theoreticalCenterDisparityPx": 5.134,
+      "leftImage": "left/frame_0057.png",
+      "rightImage": "right/frame_0057.png"
+    },
+    {
+      "frame": 58,
+      "distanceMeters": 74.35,
+      "theoreticalCenterDisparityPx": 5.165,
+      "leftImage": "left/frame_0058.png",
+      "rightImage": "right/frame_0058.png"
+    },
+    {
+      "frame": 59,
+      "distanceMeters": 73.9,
+      "theoreticalCenterDisparityPx": 5.196,
+      "leftImage": "left/frame_0059.png",
+      "rightImage": "right/frame_0059.png"
+    },
+    {
+      "frame": 60,
+      "distanceMeters": 73.45,
+      "theoreticalCenterDisparityPx": 5.228,
+      "leftImage": "left/frame_0060.png",
+      "rightImage": "right/frame_0060.png"
+    },
+    {
+      "frame": 61,
+      "distanceMeters": 73.0,
+      "theoreticalCenterDisparityPx": 5.26,
+      "leftImage": "left/frame_0061.png",
+      "rightImage": "right/frame_0061.png"
+    },
+    {
+      "frame": 62,
+      "distanceMeters": 72.55,
+      "theoreticalCenterDisparityPx": 5.293,
+      "leftImage": "left/frame_0062.png",
+      "rightImage": "right/frame_0062.png"
+    },
+    {
+      "frame": 63,
+      "distanceMeters": 72.1,
+      "theoreticalCenterDisparityPx": 5.326,
+      "leftImage": "left/frame_0063.png",
+      "rightImage": "right/frame_0063.png"
+    },
+    {
+      "frame": 64,
+      "distanceMeters": 71.65,
+      "theoreticalCenterDisparityPx": 5.359,
+      "leftImage": "left/frame_0064.png",
+      "rightImage": "right/frame_0064.png"
+    },
+    {
+      "frame": 65,
+      "distanceMeters": 71.2,
+      "theoreticalCenterDisparityPx": 5.393,
+      "leftImage": "left/frame_0065.png",
+      "rightImage": "right/frame_0065.png"
+    },
+    {
+      "frame": 66,
+      "distanceMeters": 70.75,
+      "theoreticalCenterDisparityPx": 5.428,
+      "leftImage": "left/frame_0066.png",
+      "rightImage": "right/frame_0066.png"
+    },
+    {
+      "frame": 67,
+      "distanceMeters": 70.3,
+      "theoreticalCenterDisparityPx": 5.462,
+      "leftImage": "left/frame_0067.png",
+      "rightImage": "right/frame_0067.png"
+    },
+    {
+      "frame": 68,
+      "distanceMeters": 69.85,
+      "theoreticalCenterDisparityPx": 5.497,
+      "leftImage": "left/frame_0068.png",
+      "rightImage": "right/frame_0068.png"
+    },
+    {
+      "frame": 69,
+      "distanceMeters": 69.4,
+      "theoreticalCenterDisparityPx": 5.533,
+      "leftImage": "left/frame_0069.png",
+      "rightImage": "right/frame_0069.png"
+    },
+    {
+      "frame": 70,
+      "distanceMeters": 68.95,
+      "theoreticalCenterDisparityPx": 5.569,
+      "leftImage": "left/frame_0070.png",
+      "rightImage": "right/frame_0070.png"
+    },
+    {
+      "frame": 71,
+      "distanceMeters": 68.5,
+      "theoreticalCenterDisparityPx": 5.606,
+      "leftImage": "left/frame_0071.png",
+      "rightImage": "right/frame_0071.png"
+    },
+    {
+      "frame": 72,
+      "distanceMeters": 68.05,
+      "theoreticalCenterDisparityPx": 5.643,
+      "leftImage": "left/frame_0072.png",
+      "rightImage": "right/frame_0072.png"
+    },
+    {
+      "frame": 73,
+      "distanceMeters": 67.6,
+      "theoreticalCenterDisparityPx": 5.68,
+      "leftImage": "left/frame_0073.png",
+      "rightImage": "right/frame_0073.png"
+    },
+    {
+      "frame": 74,
+      "distanceMeters": 67.15,
+      "theoreticalCenterDisparityPx": 5.719,
+      "leftImage": "left/frame_0074.png",
+      "rightImage": "right/frame_0074.png"
+    },
+    {
+      "frame": 75,
+      "distanceMeters": 66.7,
+      "theoreticalCenterDisparityPx": 5.757,
+      "leftImage": "left/frame_0075.png",
+      "rightImage": "right/frame_0075.png"
+    },
+    {
+      "frame": 76,
+      "distanceMeters": 66.25,
+      "theoreticalCenterDisparityPx": 5.796,
+      "leftImage": "left/frame_0076.png",
+      "rightImage": "right/frame_0076.png"
+    },
+    {
+      "frame": 77,
+      "distanceMeters": 65.8,
+      "theoreticalCenterDisparityPx": 5.836,
+      "leftImage": "left/frame_0077.png",
+      "rightImage": "right/frame_0077.png"
+    },
+    {
+      "frame": 78,
+      "distanceMeters": 65.35,
+      "theoreticalCenterDisparityPx": 5.876,
+      "leftImage": "left/frame_0078.png",
+      "rightImage": "right/frame_0078.png"
+    },
+    {
+      "frame": 79,
+      "distanceMeters": 64.9,
+      "theoreticalCenterDisparityPx": 5.917,
+      "leftImage": "left/frame_0079.png",
+      "rightImage": "right/frame_0079.png"
+    },
+    {
+      "frame": 80,
+      "distanceMeters": 64.45,
+      "theoreticalCenterDisparityPx": 5.958,
+      "leftImage": "left/frame_0080.png",
+      "rightImage": "right/frame_0080.png"
+    },
+    {
+      "frame": 81,
+      "distanceMeters": 64.0,
+      "theoreticalCenterDisparityPx": 6.0,
+      "leftImage": "left/frame_0081.png",
+      "rightImage": "right/frame_0081.png"
+    },
+    {
+      "frame": 82,
+      "distanceMeters": 63.55,
+      "theoreticalCenterDisparityPx": 6.042,
+      "leftImage": "left/frame_0082.png",
+      "rightImage": "right/frame_0082.png"
+    },
+    {
+      "frame": 83,
+      "distanceMeters": 63.1,
+      "theoreticalCenterDisparityPx": 6.086,
+      "leftImage": "left/frame_0083.png",
+      "rightImage": "right/frame_0083.png"
+    },
+    {
+      "frame": 84,
+      "distanceMeters": 62.65,
+      "theoreticalCenterDisparityPx": 6.129,
+      "leftImage": "left/frame_0084.png",
+      "rightImage": "right/frame_0084.png"
+    },
+    {
+      "frame": 85,
+      "distanceMeters": 62.2,
+      "theoreticalCenterDisparityPx": 6.174,
+      "leftImage": "left/frame_0085.png",
+      "rightImage": "right/frame_0085.png"
+    },
+    {
+      "frame": 86,
+      "distanceMeters": 61.75,
+      "theoreticalCenterDisparityPx": 6.219,
+      "leftImage": "left/frame_0086.png",
+      "rightImage": "right/frame_0086.png"
+    },
+    {
+      "frame": 87,
+      "distanceMeters": 61.3,
+      "theoreticalCenterDisparityPx": 6.264,
+      "leftImage": "left/frame_0087.png",
+      "rightImage": "right/frame_0087.png"
+    },
+    {
+      "frame": 88,
+      "distanceMeters": 60.85,
+      "theoreticalCenterDisparityPx": 6.311,
+      "leftImage": "left/frame_0088.png",
+      "rightImage": "right/frame_0088.png"
+    },
+    {
+      "frame": 89,
+      "distanceMeters": 60.4,
+      "theoreticalCenterDisparityPx": 6.358,
+      "leftImage": "left/frame_0089.png",
+      "rightImage": "right/frame_0089.png"
+    },
+    {
+      "frame": 90,
+      "distanceMeters": 59.95,
+      "theoreticalCenterDisparityPx": 6.405,
+      "leftImage": "left/frame_0090.png",
+      "rightImage": "right/frame_0090.png"
+    },
+    {
+      "frame": 91,
+      "distanceMeters": 59.5,
+      "theoreticalCenterDisparityPx": 6.454,
+      "leftImage": "left/frame_0091.png",
+      "rightImage": "right/frame_0091.png"
+    },
+    {
+      "frame": 92,
+      "distanceMeters": 59.05,
+      "theoreticalCenterDisparityPx": 6.503,
+      "leftImage": "left/frame_0092.png",
+      "rightImage": "right/frame_0092.png"
+    },
+    {
+      "frame": 93,
+      "distanceMeters": 58.6,
+      "theoreticalCenterDisparityPx": 6.553,
+      "leftImage": "left/frame_0093.png",
+      "rightImage": "right/frame_0093.png"
+    },
+    {
+      "frame": 94,
+      "distanceMeters": 58.15,
+      "theoreticalCenterDisparityPx": 6.604,
+      "leftImage": "left/frame_0094.png",
+      "rightImage": "right/frame_0094.png"
+    },
+    {
+      "frame": 95,
+      "distanceMeters": 57.7,
+      "theoreticalCenterDisparityPx": 6.655,
+      "leftImage": "left/frame_0095.png",
+      "rightImage": "right/frame_0095.png"
+    },
+    {
+      "frame": 96,
+      "distanceMeters": 57.25,
+      "theoreticalCenterDisparityPx": 6.707,
+      "leftImage": "left/frame_0096.png",
+      "rightImage": "right/frame_0096.png"
+    },
+    {
+      "frame": 97,
+      "distanceMeters": 56.8,
+      "theoreticalCenterDisparityPx": 6.761,
+      "leftImage": "left/frame_0097.png",
+      "rightImage": "right/frame_0097.png"
+    },
+    {
+      "frame": 98,
+      "distanceMeters": 56.35,
+      "theoreticalCenterDisparityPx": 6.815,
+      "leftImage": "left/frame_0098.png",
+      "rightImage": "right/frame_0098.png"
+    },
+    {
+      "frame": 99,
+      "distanceMeters": 55.9,
+      "theoreticalCenterDisparityPx": 6.869,
+      "leftImage": "left/frame_0099.png",
+      "rightImage": "right/frame_0099.png"
+    },
+    {
+      "frame": 100,
+      "distanceMeters": 55.45,
+      "theoreticalCenterDisparityPx": 6.925,
+      "leftImage": "left/frame_0100.png",
+      "rightImage": "right/frame_0100.png"
+    },
+    {
+      "frame": 101,
+      "distanceMeters": 55.0,
+      "theoreticalCenterDisparityPx": 6.982,
+      "leftImage": "left/frame_0101.png",
+      "rightImage": "right/frame_0101.png"
+    },
+    {
+      "frame": 102,
+      "distanceMeters": 54.55,
+      "theoreticalCenterDisparityPx": 7.039,
+      "leftImage": "left/frame_0102.png",
+      "rightImage": "right/frame_0102.png"
+    },
+    {
+      "frame": 103,
+      "distanceMeters": 54.1,
+      "theoreticalCenterDisparityPx": 7.098,
+      "leftImage": "left/frame_0103.png",
+      "rightImage": "right/frame_0103.png"
+    },
+    {
+      "frame": 104,
+      "distanceMeters": 53.65,
+      "theoreticalCenterDisparityPx": 7.158,
+      "leftImage": "left/frame_0104.png",
+      "rightImage": "right/frame_0104.png"
+    },
+    {
+      "frame": 105,
+      "distanceMeters": 53.2,
+      "theoreticalCenterDisparityPx": 7.218,
+      "leftImage": "left/frame_0105.png",
+      "rightImage": "right/frame_0105.png"
+    },
+    {
+      "frame": 106,
+      "distanceMeters": 52.75,
+      "theoreticalCenterDisparityPx": 7.28,
+      "leftImage": "left/frame_0106.png",
+      "rightImage": "right/frame_0106.png"
+    },
+    {
+      "frame": 107,
+      "distanceMeters": 52.3,
+      "theoreticalCenterDisparityPx": 7.342,
+      "leftImage": "left/frame_0107.png",
+      "rightImage": "right/frame_0107.png"
+    },
+    {
+      "frame": 108,
+      "distanceMeters": 51.85,
+      "theoreticalCenterDisparityPx": 7.406,
+      "leftImage": "left/frame_0108.png",
+      "rightImage": "right/frame_0108.png"
+    },
+    {
+      "frame": 109,
+      "distanceMeters": 51.4,
+      "theoreticalCenterDisparityPx": 7.471,
+      "leftImage": "left/frame_0109.png",
+      "rightImage": "right/frame_0109.png"
+    },
+    {
+      "frame": 110,
+      "distanceMeters": 50.95,
+      "theoreticalCenterDisparityPx": 7.537,
+      "leftImage": "left/frame_0110.png",
+      "rightImage": "right/frame_0110.png"
+    },
+    {
+      "frame": 111,
+      "distanceMeters": 50.5,
+      "theoreticalCenterDisparityPx": 7.604,
+      "leftImage": "left/frame_0111.png",
+      "rightImage": "right/frame_0111.png"
+    },
+    {
+      "frame": 112,
+      "distanceMeters": 50.05,
+      "theoreticalCenterDisparityPx": 7.672,
+      "leftImage": "left/frame_0112.png",
+      "rightImage": "right/frame_0112.png"
+    },
+    {
+      "frame": 113,
+      "distanceMeters": 49.6,
+      "theoreticalCenterDisparityPx": 7.742,
+      "leftImage": "left/frame_0113.png",
+      "rightImage": "right/frame_0113.png"
+    },
+    {
+      "frame": 114,
+      "distanceMeters": 49.15,
+      "theoreticalCenterDisparityPx": 7.813,
+      "leftImage": "left/frame_0114.png",
+      "rightImage": "right/frame_0114.png"
+    },
+    {
+      "frame": 115,
+      "distanceMeters": 48.7,
+      "theoreticalCenterDisparityPx": 7.885,
+      "leftImage": "left/frame_0115.png",
+      "rightImage": "right/frame_0115.png"
+    },
+    {
+      "frame": 116,
+      "distanceMeters": 48.25,
+      "theoreticalCenterDisparityPx": 7.959,
+      "leftImage": "left/frame_0116.png",
+      "rightImage": "right/frame_0116.png"
+    },
+    {
+      "frame": 117,
+      "distanceMeters": 47.8,
+      "theoreticalCenterDisparityPx": 8.033,
+      "leftImage": "left/frame_0117.png",
+      "rightImage": "right/frame_0117.png"
+    },
+    {
+      "frame": 118,
+      "distanceMeters": 47.35,
+      "theoreticalCenterDisparityPx": 8.11,
+      "leftImage": "left/frame_0118.png",
+      "rightImage": "right/frame_0118.png"
+    },
+    {
+      "frame": 119,
+      "distanceMeters": 46.9,
+      "theoreticalCenterDisparityPx": 8.188,
+      "leftImage": "left/frame_0119.png",
+      "rightImage": "right/frame_0119.png"
+    },
+    {
+      "frame": 120,
+      "distanceMeters": 46.45,
+      "theoreticalCenterDisparityPx": 8.267,
+      "leftImage": "left/frame_0120.png",
+      "rightImage": "right/frame_0120.png"
+    },
+    {
+      "frame": 121,
+      "distanceMeters": 46.0,
+      "theoreticalCenterDisparityPx": 8.348,
+      "leftImage": "left/frame_0121.png",
+      "rightImage": "right/frame_0121.png"
+    },
+    {
+      "frame": 122,
+      "distanceMeters": 45.55,
+      "theoreticalCenterDisparityPx": 8.43,
+      "leftImage": "left/frame_0122.png",
+      "rightImage": "right/frame_0122.png"
+    },
+    {
+      "frame": 123,
+      "distanceMeters": 45.1,
+      "theoreticalCenterDisparityPx": 8.514,
+      "leftImage": "left/frame_0123.png",
+      "rightImage": "right/frame_0123.png"
+    },
+    {
+      "frame": 124,
+      "distanceMeters": 44.65,
+      "theoreticalCenterDisparityPx": 8.6,
+      "leftImage": "left/frame_0124.png",
+      "rightImage": "right/frame_0124.png"
+    },
+    {
+      "frame": 125,
+      "distanceMeters": 44.2,
+      "theoreticalCenterDisparityPx": 8.688,
+      "leftImage": "left/frame_0125.png",
+      "rightImage": "right/frame_0125.png"
+    },
+    {
+      "frame": 126,
+      "distanceMeters": 43.75,
+      "theoreticalCenterDisparityPx": 8.777,
+      "leftImage": "left/frame_0126.png",
+      "rightImage": "right/frame_0126.png"
+    },
+    {
+      "frame": 127,
+      "distanceMeters": 43.3,
+      "theoreticalCenterDisparityPx": 8.868,
+      "leftImage": "left/frame_0127.png",
+      "rightImage": "right/frame_0127.png"
+    },
+    {
+      "frame": 128,
+      "distanceMeters": 42.85,
+      "theoreticalCenterDisparityPx": 8.961,
+      "leftImage": "left/frame_0128.png",
+      "rightImage": "right/frame_0128.png"
+    },
+    {
+      "frame": 129,
+      "distanceMeters": 42.4,
+      "theoreticalCenterDisparityPx": 9.057,
+      "leftImage": "left/frame_0129.png",
+      "rightImage": "right/frame_0129.png"
+    },
+    {
+      "frame": 130,
+      "distanceMeters": 41.95,
+      "theoreticalCenterDisparityPx": 9.154,
+      "leftImage": "left/frame_0130.png",
+      "rightImage": "right/frame_0130.png"
+    },
+    {
+      "frame": 131,
+      "distanceMeters": 41.5,
+      "theoreticalCenterDisparityPx": 9.253,
+      "leftImage": "left/frame_0131.png",
+      "rightImage": "right/frame_0131.png"
+    },
+    {
+      "frame": 132,
+      "distanceMeters": 41.05,
+      "theoreticalCenterDisparityPx": 9.354,
+      "leftImage": "left/frame_0132.png",
+      "rightImage": "right/frame_0132.png"
+    },
+    {
+      "frame": 133,
+      "distanceMeters": 40.6,
+      "theoreticalCenterDisparityPx": 9.458,
+      "leftImage": "left/frame_0133.png",
+      "rightImage": "right/frame_0133.png"
+    },
+    {
+      "frame": 134,
+      "distanceMeters": 40.15,
+      "theoreticalCenterDisparityPx": 9.564,
+      "leftImage": "left/frame_0134.png",
+      "rightImage": "right/frame_0134.png"
+    },
+    {
+      "frame": 135,
+      "distanceMeters": 39.7,
+      "theoreticalCenterDisparityPx": 9.673,
+      "leftImage": "left/frame_0135.png",
+      "rightImage": "right/frame_0135.png"
+    },
+    {
+      "frame": 136,
+      "distanceMeters": 39.25,
+      "theoreticalCenterDisparityPx": 9.783,
+      "leftImage": "left/frame_0136.png",
+      "rightImage": "right/frame_0136.png"
+    },
+    {
+      "frame": 137,
+      "distanceMeters": 38.8,
+      "theoreticalCenterDisparityPx": 9.897,
+      "leftImage": "left/frame_0137.png",
+      "rightImage": "right/frame_0137.png"
+    },
+    {
+      "frame": 138,
+      "distanceMeters": 38.35,
+      "theoreticalCenterDisparityPx": 10.013,
+      "leftImage": "left/frame_0138.png",
+      "rightImage": "right/frame_0138.png"
+    },
+    {
+      "frame": 139,
+      "distanceMeters": 37.9,
+      "theoreticalCenterDisparityPx": 10.132,
+      "leftImage": "left/frame_0139.png",
+      "rightImage": "right/frame_0139.png"
+    },
+    {
+      "frame": 140,
+      "distanceMeters": 37.45,
+      "theoreticalCenterDisparityPx": 10.254,
+      "leftImage": "left/frame_0140.png",
+      "rightImage": "right/frame_0140.png"
+    },
+    {
+      "frame": 141,
+      "distanceMeters": 37.0,
+      "theoreticalCenterDisparityPx": 10.378,
+      "leftImage": "left/frame_0141.png",
+      "rightImage": "right/frame_0141.png"
+    },
+    {
+      "frame": 142,
+      "distanceMeters": 36.55,
+      "theoreticalCenterDisparityPx": 10.506,
+      "leftImage": "left/frame_0142.png",
+      "rightImage": "right/frame_0142.png"
+    },
+    {
+      "frame": 143,
+      "distanceMeters": 36.1,
+      "theoreticalCenterDisparityPx": 10.637,
+      "leftImage": "left/frame_0143.png",
+      "rightImage": "right/frame_0143.png"
+    },
+    {
+      "frame": 144,
+      "distanceMeters": 35.65,
+      "theoreticalCenterDisparityPx": 10.771,
+      "leftImage": "left/frame_0144.png",
+      "rightImage": "right/frame_0144.png"
+    },
+    {
+      "frame": 145,
+      "distanceMeters": 35.2,
+      "theoreticalCenterDisparityPx": 10.909,
+      "leftImage": "left/frame_0145.png",
+      "rightImage": "right/frame_0145.png"
+    },
+    {
+      "frame": 146,
+      "distanceMeters": 34.75,
+      "theoreticalCenterDisparityPx": 11.05,
+      "leftImage": "left/frame_0146.png",
+      "rightImage": "right/frame_0146.png"
+    },
+    {
+      "frame": 147,
+      "distanceMeters": 34.3,
+      "theoreticalCenterDisparityPx": 11.195,
+      "leftImage": "left/frame_0147.png",
+      "rightImage": "right/frame_0147.png"
+    },
+    {
+      "frame": 148,
+      "distanceMeters": 33.85,
+      "theoreticalCenterDisparityPx": 11.344,
+      "leftImage": "left/frame_0148.png",
+      "rightImage": "right/frame_0148.png"
+    },
+    {
+      "frame": 149,
+      "distanceMeters": 33.4,
+      "theoreticalCenterDisparityPx": 11.497,
+      "leftImage": "left/frame_0149.png",
+      "rightImage": "right/frame_0149.png"
+    },
+    {
+      "frame": 150,
+      "distanceMeters": 32.95,
+      "theoreticalCenterDisparityPx": 11.654,
+      "leftImage": "left/frame_0150.png",
+      "rightImage": "right/frame_0150.png"
+    },
+    {
+      "frame": 151,
+      "distanceMeters": 32.5,
+      "theoreticalCenterDisparityPx": 11.815,
+      "leftImage": "left/frame_0151.png",
+      "rightImage": "right/frame_0151.png"
+    },
+    {
+      "frame": 152,
+      "distanceMeters": 32.05,
+      "theoreticalCenterDisparityPx": 11.981,
+      "leftImage": "left/frame_0152.png",
+      "rightImage": "right/frame_0152.png"
+    },
+    {
+      "frame": 153,
+      "distanceMeters": 31.6,
+      "theoreticalCenterDisparityPx": 12.152,
+      "leftImage": "left/frame_0153.png",
+      "rightImage": "right/frame_0153.png"
+    },
+    {
+      "frame": 154,
+      "distanceMeters": 31.15,
+      "theoreticalCenterDisparityPx": 12.327,
+      "leftImage": "left/frame_0154.png",
+      "rightImage": "right/frame_0154.png"
+    },
+    {
+      "frame": 155,
+      "distanceMeters": 30.7,
+      "theoreticalCenterDisparityPx": 12.508,
+      "leftImage": "left/frame_0155.png",
+      "rightImage": "right/frame_0155.png"
+    },
+    {
+      "frame": 156,
+      "distanceMeters": 30.25,
+      "theoreticalCenterDisparityPx": 12.694,
+      "leftImage": "left/frame_0156.png",
+      "rightImage": "right/frame_0156.png"
+    },
+    {
+      "frame": 157,
+      "distanceMeters": 29.8,
+      "theoreticalCenterDisparityPx": 12.886,
+      "leftImage": "left/frame_0157.png",
+      "rightImage": "right/frame_0157.png"
+    },
+    {
+      "frame": 158,
+      "distanceMeters": 29.35,
+      "theoreticalCenterDisparityPx": 13.083,
+      "leftImage": "left/frame_0158.png",
+      "rightImage": "right/frame_0158.png"
+    },
+    {
+      "frame": 159,
+      "distanceMeters": 28.9,
+      "theoreticalCenterDisparityPx": 13.287,
+      "leftImage": "left/frame_0159.png",
+      "rightImage": "right/frame_0159.png"
+    },
+    {
+      "frame": 160,
+      "distanceMeters": 28.45,
+      "theoreticalCenterDisparityPx": 13.497,
+      "leftImage": "left/frame_0160.png",
+      "rightImage": "right/frame_0160.png"
+    },
+    {
+      "frame": 161,
+      "distanceMeters": 28.0,
+      "theoreticalCenterDisparityPx": 13.714,
+      "leftImage": "left/frame_0161.png",
+      "rightImage": "right/frame_0161.png"
+    },
+    {
+      "frame": 162,
+      "distanceMeters": 27.55,
+      "theoreticalCenterDisparityPx": 13.938,
+      "leftImage": "left/frame_0162.png",
+      "rightImage": "right/frame_0162.png"
+    },
+    {
+      "frame": 163,
+      "distanceMeters": 27.1,
+      "theoreticalCenterDisparityPx": 14.17,
+      "leftImage": "left/frame_0163.png",
+      "rightImage": "right/frame_0163.png"
+    },
+    {
+      "frame": 164,
+      "distanceMeters": 26.65,
+      "theoreticalCenterDisparityPx": 14.409,
+      "leftImage": "left/frame_0164.png",
+      "rightImage": "right/frame_0164.png"
+    },
+    {
+      "frame": 165,
+      "distanceMeters": 26.2,
+      "theoreticalCenterDisparityPx": 14.656,
+      "leftImage": "left/frame_0165.png",
+      "rightImage": "right/frame_0165.png"
+    },
+    {
+      "frame": 166,
+      "distanceMeters": 25.75,
+      "theoreticalCenterDisparityPx": 14.913,
+      "leftImage": "left/frame_0166.png",
+      "rightImage": "right/frame_0166.png"
+    },
+    {
+      "frame": 167,
+      "distanceMeters": 25.3,
+      "theoreticalCenterDisparityPx": 15.178,
+      "leftImage": "left/frame_0167.png",
+      "rightImage": "right/frame_0167.png"
+    },
+    {
+      "frame": 168,
+      "distanceMeters": 24.85,
+      "theoreticalCenterDisparityPx": 15.453,
+      "leftImage": "left/frame_0168.png",
+      "rightImage": "right/frame_0168.png"
+    },
+    {
+      "frame": 169,
+      "distanceMeters": 24.4,
+      "theoreticalCenterDisparityPx": 15.738,
+      "leftImage": "left/frame_0169.png",
+      "rightImage": "right/frame_0169.png"
+    },
+    {
+      "frame": 170,
+      "distanceMeters": 23.95,
+      "theoreticalCenterDisparityPx": 16.033,
+      "leftImage": "left/frame_0170.png",
+      "rightImage": "right/frame_0170.png"
+    },
+    {
+      "frame": 171,
+      "distanceMeters": 23.5,
+      "theoreticalCenterDisparityPx": 16.34,
+      "leftImage": "left/frame_0171.png",
+      "rightImage": "right/frame_0171.png"
+    },
+    {
+      "frame": 172,
+      "distanceMeters": 23.05,
+      "theoreticalCenterDisparityPx": 16.659,
+      "leftImage": "left/frame_0172.png",
+      "rightImage": "right/frame_0172.png"
+    },
+    {
+      "frame": 173,
+      "distanceMeters": 22.6,
+      "theoreticalCenterDisparityPx": 16.991,
+      "leftImage": "left/frame_0173.png",
+      "rightImage": "right/frame_0173.png"
+    },
+    {
+      "frame": 174,
+      "distanceMeters": 22.15,
+      "theoreticalCenterDisparityPx": 17.336,
+      "leftImage": "left/frame_0174.png",
+      "rightImage": "right/frame_0174.png"
+    },
+    {
+      "frame": 175,
+      "distanceMeters": 21.7,
+      "theoreticalCenterDisparityPx": 17.696,
+      "leftImage": "left/frame_0175.png",
+      "rightImage": "right/frame_0175.png"
+    },
+    {
+      "frame": 176,
+      "distanceMeters": 21.25,
+      "theoreticalCenterDisparityPx": 18.071,
+      "leftImage": "left/frame_0176.png",
+      "rightImage": "right/frame_0176.png"
+    },
+    {
+      "frame": 177,
+      "distanceMeters": 20.8,
+      "theoreticalCenterDisparityPx": 18.462,
+      "leftImage": "left/frame_0177.png",
+      "rightImage": "right/frame_0177.png"
+    },
+    {
+      "frame": 178,
+      "distanceMeters": 20.35,
+      "theoreticalCenterDisparityPx": 18.87,
+      "leftImage": "left/frame_0178.png",
+      "rightImage": "right/frame_0178.png"
+    },
+    {
+      "frame": 179,
+      "distanceMeters": 19.9,
+      "theoreticalCenterDisparityPx": 19.296,
+      "leftImage": "left/frame_0179.png",
+      "rightImage": "right/frame_0179.png"
+    },
+    {
+      "frame": 180,
+      "distanceMeters": 19.45,
+      "theoreticalCenterDisparityPx": 19.743,
+      "leftImage": "left/frame_0180.png",
+      "rightImage": "right/frame_0180.png"
+    },
+    {
+      "frame": 181,
+      "distanceMeters": 19.0,
+      "theoreticalCenterDisparityPx": 20.211,
+      "leftImage": "left/frame_0181.png",
+      "rightImage": "right/frame_0181.png"
+    },
+    {
+      "frame": 182,
+      "distanceMeters": 18.55,
+      "theoreticalCenterDisparityPx": 20.701,
+      "leftImage": "left/frame_0182.png",
+      "rightImage": "right/frame_0182.png"
+    },
+    {
+      "frame": 183,
+      "distanceMeters": 18.1,
+      "theoreticalCenterDisparityPx": 21.215,
+      "leftImage": "left/frame_0183.png",
+      "rightImage": "right/frame_0183.png"
+    },
+    {
+      "frame": 184,
+      "distanceMeters": 17.65,
+      "theoreticalCenterDisparityPx": 21.756,
+      "leftImage": "left/frame_0184.png",
+      "rightImage": "right/frame_0184.png"
+    },
+    {
+      "frame": 185,
+      "distanceMeters": 17.2,
+      "theoreticalCenterDisparityPx": 22.326,
+      "leftImage": "left/frame_0185.png",
+      "rightImage": "right/frame_0185.png"
+    },
+    {
+      "frame": 186,
+      "distanceMeters": 16.75,
+      "theoreticalCenterDisparityPx": 22.925,
+      "leftImage": "left/frame_0186.png",
+      "rightImage": "right/frame_0186.png"
+    },
+    {
+      "frame": 187,
+      "distanceMeters": 16.3,
+      "theoreticalCenterDisparityPx": 23.558,
+      "leftImage": "left/frame_0187.png",
+      "rightImage": "right/frame_0187.png"
+    },
+    {
+      "frame": 188,
+      "distanceMeters": 15.85,
+      "theoreticalCenterDisparityPx": 24.227,
+      "leftImage": "left/frame_0188.png",
+      "rightImage": "right/frame_0188.png"
+    },
+    {
+      "frame": 189,
+      "distanceMeters": 15.4,
+      "theoreticalCenterDisparityPx": 24.935,
+      "leftImage": "left/frame_0189.png",
+      "rightImage": "right/frame_0189.png"
+    },
+    {
+      "frame": 190,
+      "distanceMeters": 14.95,
+      "theoreticalCenterDisparityPx": 25.686,
+      "leftImage": "left/frame_0190.png",
+      "rightImage": "right/frame_0190.png"
+    },
+    {
+      "frame": 191,
+      "distanceMeters": 14.5,
+      "theoreticalCenterDisparityPx": 26.483,
+      "leftImage": "left/frame_0191.png",
+      "rightImage": "right/frame_0191.png"
+    },
+    {
+      "frame": 192,
+      "distanceMeters": 14.05,
+      "theoreticalCenterDisparityPx": 27.331,
+      "leftImage": "left/frame_0192.png",
+      "rightImage": "right/frame_0192.png"
+    },
+    {
+      "frame": 193,
+      "distanceMeters": 13.6,
+      "theoreticalCenterDisparityPx": 28.235,
+      "leftImage": "left/frame_0193.png",
+      "rightImage": "right/frame_0193.png"
+    },
+    {
+      "frame": 194,
+      "distanceMeters": 13.15,
+      "theoreticalCenterDisparityPx": 29.202,
+      "leftImage": "left/frame_0194.png",
+      "rightImage": "right/frame_0194.png"
+    },
+    {
+      "frame": 195,
+      "distanceMeters": 12.7,
+      "theoreticalCenterDisparityPx": 30.236,
+      "leftImage": "left/frame_0195.png",
+      "rightImage": "right/frame_0195.png"
+    },
+    {
+      "frame": 196,
+      "distanceMeters": 12.25,
+      "theoreticalCenterDisparityPx": 31.347,
+      "leftImage": "left/frame_0196.png",
+      "rightImage": "right/frame_0196.png"
+    },
+    {
+      "frame": 197,
+      "distanceMeters": 11.8,
+      "theoreticalCenterDisparityPx": 32.542,
+      "leftImage": "left/frame_0197.png",
+      "rightImage": "right/frame_0197.png"
+    },
+    {
+      "frame": 198,
+      "distanceMeters": 11.35,
+      "theoreticalCenterDisparityPx": 33.833,
+      "leftImage": "left/frame_0198.png",
+      "rightImage": "right/frame_0198.png"
+    },
+    {
+      "frame": 199,
+      "distanceMeters": 10.9,
+      "theoreticalCenterDisparityPx": 35.229,
+      "leftImage": "left/frame_0199.png",
+      "rightImage": "right/frame_0199.png"
+    },
+    {
+      "frame": 200,
+      "distanceMeters": 10.45,
+      "theoreticalCenterDisparityPx": 36.746,
+      "leftImage": "left/frame_0200.png",
+      "rightImage": "right/frame_0200.png"
+    },
+    {
+      "frame": 201,
+      "distanceMeters": 10.0,
+      "theoreticalCenterDisparityPx": 38.4,
+      "leftImage": "left/frame_0201.png",
+      "rightImage": "right/frame_0201.png"
+    },
+    {
+      "frame": 202,
+      "distanceMeters": 9.55,
+      "theoreticalCenterDisparityPx": 40.209,
+      "leftImage": "left/frame_0202.png",
+      "rightImage": "right/frame_0202.png"
+    }
+  ]
+}

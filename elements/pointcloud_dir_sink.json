@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "pointcloud_dir_sink",
+  "name": "Save 3D Points to Directory",
+  "kind": "sink",
+  "icon": "storage",
+  "summary": "Writes each incoming ASCII PLY point cloud to a directory.",
+  "inputs": [
+    { "name": "points3d", "type": "pointcloud" }
+  ],
+  "outputs": [],
+  "params": {
+    "dir": {
+      "type": "folder",
+      "label": "Destination folder",
+      "default": null,
+      "create": true,
+      "description": "Results are written here. A new folder can be created from the chooser."
+    }
+  },
+  "telemetry": [],
+  "exec": { "builtin": "save_pointcloud_to_dir" }
+}

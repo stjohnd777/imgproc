@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "id": "convert",
+  "name": "Convert",
+  "kind": "transform",
+  "category": "filter",
+  "icon": "transform",
+  "summary": "Convert pixel type (grayscale, RGB), bit depth (U8, U16), and resize with aspect-ratio letterboxing.",
+  "inputs": [
+    {
+      "name": "image",
+      "type": "image"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "image",
+      "type": "image"
+    }
+  ],
+  "params": {
+    "width": {
+      "type": "number",
+      "label": "Target width (px, 0 = keep)",
+      "default": 0,
+      "min": 0,
+      "max": 32768,
+      "step": 1,
+      "description": "Output width in pixels. 0 retains source width."
+    },
+    "height": {
+      "type": "number",
+      "label": "Target height (px, 0 = keep)",
+      "default": 0,
+      "min": 0,
+      "max": 32768,
+      "step": 1,
+      "description": "Output height in pixels. 0 retains source height."
+    },
+    "preserveRatio": {
+      "type": "boolean",
+      "label": "Preserve aspect ratio (letterbox/pillarbox with black border)",
+      "default": true,
+      "description": "When true, scales proportionally and centers on a black canvas to fill dimensions."
+    },
+    "colorMode": {
+      "type": "enum",
+      "label": "Color mode",
+      "default": "gray",
+      "values": ["gray", "rgb", "keep"],
+      "description": "Color channel format (gray converts color to single-channel luminance)."
+    },
+    "depthMode": {
+      "type": "enum",
+      "label": "Bit depth",
+      "default": "u8",
+      "values": ["u8", "u16", "keep"],
+      "description": "Bit depth per channel: u8 (0..255) or u16 (0..65535)."
+    },
+    "interpolation": {
+      "type": "enum",
+      "label": "Interpolation",
+      "default": "linear",
+      "values": ["linear", "nearest", "cubic", "area", "lanczos4"],
+      "description": "Pixel interpolation method for resampling."
+    }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-convert/build/convert_cli",
+    "args": [
+      "{in.image}",
+      "{out.image}",
+      "{param.width}",
+      "{param.height}",
+      "{param.preserveRatio}",
+      "{param.colorMode}",
+      "{param.depthMode}",
+      "{param.interpolation}"
+    ]
+  }
+}

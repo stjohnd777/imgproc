@@ -1,0 +1,5 @@
+add_executable(attitude_server_tests dummy_test.cpp)
+target_link_libraries(attitude_server_tests PRIVATE GTest::gtest_main)
+
+include(GoogleTest)
+gtest_discover_tests(attitude_server_tests)

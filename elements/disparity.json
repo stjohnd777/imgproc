@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "disparity",
+  "name": "Disparity",
+  "kind": "transform",
+  "category": "stereo",
+  "icon": "transform",
+  "summary": "Stereo disparity map from a rectified left/right image pair.",
+  "inputs": [
+    { "name": "left", "type": "image" },
+    { "name": "right", "type": "image" }
+  ],
+  "outputs": [
+    { "name": "disparity", "type": "disparity" }
+  ],
+  "params": {
+    "leftCamera": { "type": "camera", "default": null, "description": "camera_spec entry for the left camera." },
+    "rightCamera": { "type": "camera", "default": null, "description": "camera_spec entry for the right camera." },
+    "numDisparities": { "type": "number", "default": 64 },
+    "blockSize": { "type": "number", "default": 9 }
+  },
+  "telemetry": []
+}

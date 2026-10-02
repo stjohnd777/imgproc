@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "id": "see3cam-cu30-chl-tc",
+  "name": "See3CAM_CU30_CHL_TC",
+  "manufacturer": "e-con Systems",
+  "model": "See3CAM_CU30_CHL_TC",
+  "family": "See3CAM_CU30",
+  "serialNumber": null,
+  "notes": [
+    "TC is the USB Type-C version of the CU30 board: a two-board USB 3 camera with an S-mount lens holder.",
+    "Has an ISP (auto exposure, auto white balance and related processing). For synthetic imagery, decide whether to model the raw sensor or the post-ISP output."
+  ],
+  "sensor": {
+    "model": "onsemi AR0330HS",
+    "technology": "CMOS",
+    "chroma": "color",
+    "opticalFormat": "1/3\"",
+    "nominalMegapixels": 3.4,
+    "resolution": { "width": 2304, "height": 1536 },
+    "pixelPitchUm": { "x": 2.2, "y": 2.2 },
+    "activeAreaMm": { "width": 5.0688, "height": 3.3792, "diagonal": 6.092 },
+    "shutter": "electronic rolling shutter; global-reset capability requires appropriate firmware/configuration",
+    "rawBits": 10,
+    "dynamicRangeDb": 69.5,
+    "snrDb": 39,
+    "spectral": "Good near-infrared responsivity; e-con discusses IR-cut, IR-pass and dual-band filter configurations."
+  },
+  "interface": {
+    "type": "USB 3.1 Gen 1 / USB 3.0",
+    "protocol": "UVC",
+    "connector": "USB Type-C"
+  },
+  "lensMount": "M12 / S-mount",
+  "lens": {
+    "manufacturer": "e-con Systems supplied lens",
+    "model": null,
+    "focalLengthMm": 2.8,
+    "maxAperture": null,
+    "fieldOfViewDeg": {
+      "horizontal": null,
+      "vertical": null,
+      "diagonal": 120
+    },
+    "notes": [
+      "e-con documents 2.8 mm focal length and 120 degree diagonal FOV for the enclosed See3CAM_CU30_CHL_TC_BX variant. The exact fitted lens model and aperture are not identified.",
+      "Treat these values as family/variant evidence until the physical lens marking on this unit is confirmed."
+    ]
+  },
+  "output": {
+    "formats": ["UYVY", "MJPEG"],
+    "videoModes": [
+      { "format": "UYVY", "width": 1280, "height": 720, "maxFps": 60 },
+      { "format": "UYVY", "width": 1920, "height": 1080, "maxFps": 60 },
+      { "format": "UYVY", "width": 2304, "height": 1296, "maxFps": 30, "approximate": true },
+      { "format": "UYVY", "width": 2304, "height": 1536, "maxFps": 24, "approximate": true },
+      { "format": "MJPEG", "width": 1280, "height": 720, "maxFps": 60 },
+      { "format": "MJPEG", "width": 1920, "height": 1080, "maxFps": 60 },
+      { "format": "MJPEG", "width": 2304, "height": 1296, "maxFps": 60 },
+      { "format": "MJPEG", "width": 2304, "height": 1536, "maxFps": 48, "approximate": true }
+    ]
+  },
+  "isp": {
+    "autoExposure": true,
+    "autoWhiteBalance": true
+  },
+  "hardwareTrigger": true,
+  "intrinsics": null,
+  "openQuestions": [
+    "Whether this non-BX board carries the same 2.8 mm / 120 degree lens as the documented BX enclosure variant.",
+    "Exact lens model, aperture and filter fitted to this unit.",
+    "Hardware trigger is listed for non-enclosed CU30 versions; this board version should have it, but confirm on the unit."
+  ],
+  "sources": [
+    "https://www.studocu.vn/vn/document/truong-dai-hoc-bach-khoa-ha-noi/digital-electronics/see3cam-cu30-chl-tc-datasheet-rev-1-1/55622333",
+    "https://www.e-consystems.com/ar0330-lowlight-usb-cameraboard.asp",
+    "https://www.e-consystems.com/news2016_17.asp",
+    "https://www.imveurope.com/press-releases/see3camcu30",
+    "https://www.e-consystems.com/ar0330-lowlight-usb-gen1-box-camera-faq.asp"
+  ]
+}

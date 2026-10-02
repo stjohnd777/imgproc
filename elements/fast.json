@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "id": "fast",
+  "name": "FAST",
+  "kind": "transform",
+  "category": "feature",
+  "icon": "transform",
+  "summary": "FAST corner detector, threshold 20 with non-maximum suppression. Outputs keypoint JSON and an annotated preview image.",
+  "inputs": [
+    {
+      "name": "image",
+      "type": "image"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "preview",
+      "type": "image"
+    },
+    {
+      "name": "keypoints",
+      "type": "keypoints"
+    }
+  ],
+  "params": {
+    "threshold": {
+      "type": "number",
+      "default": 20,
+      "min": 0,
+      "max": 255,
+      "step": 1
+    },
+    "nonmaxSuppression": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-fast/build/fast_cli",
+    "args": [
+      "{in.image}",
+      "{out.preview}",
+      "{out.keypoints}",
+      "{param.threshold}",
+      "{param.nonmaxSuppression}"
+    ]
+  }
+}

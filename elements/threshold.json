@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "threshold",
+  "name": "Threshold",
+  "kind": "transform",
+  "category": "filter",
+  "icon": "transform",
+  "summary": "Range threshold: pixels outside [low, high] become black. Pixels inside keep their colour, or become a flat value when setBandValue is on.",
+  "inputs": [
+    { "name": "image", "type": "image" }
+  ],
+  "outputs": [
+    { "name": "image", "type": "image" }
+  ],
+  "params": {
+    "low": { "type": "number", "default": 0, "min": 0, "max": 255, "step": 1 },
+    "high": { "type": "number", "default": 255, "min": 0, "max": 255, "step": 1 },
+    "setBandValue": { "type": "boolean", "default": false, "description": "Replace pixels inside the range with a flat value." },
+    "bandValue": { "type": "number", "default": 255, "min": 0, "max": 255, "step": 1 }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-threshold/build/threshold_cli",
+    "args": ["{in.image}", "{out.image}", "{param.low}", "{param.high}", "{param.setBandValue}", "{param.bandValue}"]
+  }
+}

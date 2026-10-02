@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "undistort",
+  "name": "Undistort",
+  "kind": "transform",
+  "category": "stereo",
+  "icon": "transform",
+  "summary": "Removes lens distortion using the camera matrix (fx, fy, cx, cy) and distortion coefficients (k1, k2, p1, p2, k3).",
+  "inputs": [
+    { "name": "image", "type": "image" }
+  ],
+  "outputs": [
+    { "name": "image", "type": "image" }
+  ],
+  "params": {
+    "camera": { "type": "camera", "default": null, "description": "camera_spec entry used to fill in the values below." },
+    "fx": { "type": "number", "default": 1000, "description": "Focal length x, pixels." },
+    "fy": { "type": "number", "default": 1000, "description": "Focal length y, pixels." },
+    "cx": { "type": "number", "default": 0, "description": "Principal point x, pixels." },
+    "cy": { "type": "number", "default": 0, "description": "Principal point y, pixels." },
+    "k1": { "type": "number", "default": 0 },
+    "k2": { "type": "number", "default": 0 },
+    "p1": { "type": "number", "default": 0 },
+    "p2": { "type": "number", "default": 0 },
+    "k3": { "type": "number", "default": 0 }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-undistort/build/undistort_cli",
+    "args": ["{in.image}", "{out.image}", "{param.fx}", "{param.fy}", "{param.cx}", "{param.cy}",
+             "{param.k1}", "{param.k2}", "{param.p1}", "{param.p2}", "{param.k3}"]
+  }
+}

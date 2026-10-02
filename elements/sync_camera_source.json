@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "id": "sync_camera_source",
+  "name": "Synthetic Camera",
+  "kind": "source",
+  "category": "source",
+  "icon": "camera",
+  "summary": "Simulates a synthetic stereo camera rig (SynC) in orbit, streaming left and right image frames from Blender with ground-truth geometry.",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "imageL",
+      "type": "image"
+    },
+    {
+      "name": "imageR",
+      "type": "image"
+    }
+  ],
+  "params": {
+    "scene": {
+      "type": "folder",
+      "label": "Scene directory",
+      "default": "SynC/scenes/ingress",
+      "description": "Folder containing the scene generator script (build_ingress_scene.py) and rendered frame sequences."
+    },
+    "target_model": {
+      "type": "enum",
+      "label": "Target spacecraft model",
+      "default": "Cassini-Huygens (A).glb",
+      "values": [
+        "Cassini-Huygens (A).glb",
+        "NEAR Shoemaker.glb",
+        "Dawn.glb",
+        "Voyager Probe (B).glb",
+        "Hubble Space Telescope (A).glb",
+        "Juno (A).glb",
+        "Chandra X-ray Observatory.glb",
+        "Gateway Core.glb",
+        "moon.glb"
+      ],
+      "description": "Target 3D asset loaded from SynC/models/."
+    },
+    "camera": {
+      "type": "camera",
+      "label": "Camera optics profile",
+      "default": "bfly_pge_13s2m_cs.json",
+      "description": "Camera profile from camera_spec/ (e.g. Blackfly 12mm narrow FOV vs See3CAM 2.8mm wide FOV)."
+    },
+    "start": {
+      "type": "number",
+      "label": "Start range (m)",
+      "default": 100.0,
+      "min": 1.0,
+      "max": 10000.0,
+      "step": 1.0,
+      "description": "Initial approach distance along optical axis."
+    },
+    "stop": {
+      "type": "number",
+      "label": "End range (m)",
+      "default": 10.0,
+      "min": 0.5,
+      "max": 10000.0,
+      "step": 1.0,
+      "description": "Terminal approach distance along optical axis."
+    },
+    "increment": {
+      "type": "number",
+      "label": "Range decrement per frame (m)",
+      "default": 0.5,
+      "min": 0.05,
+      "max": 100.0,
+      "step": 0.1,
+      "description": "Distance step between successive frames."
+    },
+    "sunAzimuth": {
+      "type": "number",
+      "label": "Sun azimuth angle (deg)",
+      "default": 180.0,
+      "min": 0.0,
+      "max": 360.0,
+      "step": 5.0,
+      "description": "Azimuth is measured from +Y toward +X. Since cameras look along +Y, 180 degrees places the Sun behind the camera."
+    },
+    "sunElevation": {
+      "type": "number",
+      "label": "Sun elevation angle (deg)",
+      "default": 30.0,
+      "min": -90.0,
+      "max": 90.0,
+      "step": 5.0,
+      "description": "Solar elevation angle above the target horizon."
+    },
+    "fps": {
+      "type": "number",
+      "label": "Stream FPS",
+      "default": 5,
+      "min": 1,
+      "max": 60,
+      "step": 1,
+      "description": "Playback frame rate for the workflow."
+    },
+    "loop": {
+      "type": "boolean",
+      "label": "Loop sequence",
+      "default": false,
+      "description": "When checked, wraps back to start after reaching the terminal frame."
+    },
+    "regenerate": {
+      "type": "boolean",
+      "label": "Re-render in Blender before running",
+      "default": false,
+      "description": "Required for changed scene, range, or sun settings to affect images. If unchecked, existing rendered frames are reused."
+    }
+  },
+  "telemetry": [],
+  "exec": {
+    "builtin": "sync_camera_source"
+  }
+}

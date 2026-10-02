@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "camera_source",
+  "name": "Camera",
+  "kind": "source",
+  "icon": "camera",
+  "summary": "Streams frames from a camera.",
+  "inputs": [],
+  "outputs": [
+    { "name": "image", "type": "image" }
+  ],
+  "params": {
+    "camera": { "type": "camera", "default": null, "description": "Camera URI or camera_spec entry." },
+    "fps": { "type": "number", "default": 30 }
+  },
+  "telemetry": []
+}

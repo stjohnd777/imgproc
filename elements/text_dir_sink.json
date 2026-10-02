@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "text_dir_sink",
+  "name": "Save Text to Directory",
+  "kind": "sink",
+  "icon": "storage",
+  "summary": "Writes each incoming text artifact to a directory, preserving its file extension.",
+  "inputs": [
+    { "name": "text", "type": "text" }
+  ],
+  "outputs": [],
+  "params": {
+    "dir": {
+      "type": "folder",
+      "label": "Destination folder",
+      "default": null,
+      "create": true,
+      "description": "Results are written here. A new folder can be created from the chooser."
+    }
+  },
+  "telemetry": [],
+  "exec": { "builtin": "save_text_to_dir" }
+}

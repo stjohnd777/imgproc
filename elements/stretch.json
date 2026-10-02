@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "stretch",
+  "name": "Stretch Contrast",
+  "kind": "transform",
+  "category": "filter",
+  "icon": "transform",
+  "summary": "Contrast stretch (auto-levels). Maps a chosen input range onto the full output range, which is how dark 12-bit-in-16-bit frames are made viewable. Reads 16-bit input unchanged and outputs 8-bit.",
+  "inputs": [
+    { "name": "image", "type": "image" }
+  ],
+  "outputs": [
+    { "name": "image", "type": "image" }
+  ],
+  "params": {
+    "mode": {
+      "type": "enum",
+      "values": ["percentile", "minmax", "bits"],
+      "default": "percentile",
+      "description": "percentile clips outliers, minmax uses every pixel, bits scales a fixed sensor range."
+    },
+    "low": {
+      "type": "number",
+      "default": 0.5,
+      "min": 0,
+      "max": 100,
+      "description": "Low percentile in percentile mode; the sensor bit depth (e.g. 12) in bits mode. Ignored in minmax mode."
+    },
+    "high": {
+      "type": "number",
+      "default": 99.5,
+      "min": 0,
+      "max": 100,
+      "description": "High percentile. Used in percentile mode only."
+    }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-stretch/build/stretch_cli",
+    "args": ["{in.image}", "{out.image}", "{param.mode}", "{param.low}", "{param.high}"]
+  }
+}

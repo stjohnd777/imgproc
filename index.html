@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>Hello Electron</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            font-family: sans-serif;
+            color: #ddd;
+            background: #1e1e1e;
+        }
+
+        /* Left nav ribbon, like a code IDE activity bar */
+        nav {
+            width: 60px;
+            background: #252526;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 12px;
+            gap: 8px;
+        }
+
+        nav button {
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: #ccc;
+            cursor: pointer;
+        }
+
+        nav button:hover,
+        nav button.active {
+            background: #3a3d41;
+            color: #fff;
+        }
+
+        nav button svg {
+            width: 22px;
+            height: 22px;
+            display: block;
+            margin: auto;
+        }
+
+        nav .settings-btn {
+            margin-top: auto;
+        }
+
+        /* Workflow palette: draggable elements grouped by kind */
+        .palette-hint {
+            padding: 0 12px 8px;
+            color: #888;
+            font-size: 12px;
+        }
+
+        .palette-heading {
+            padding: 8px 12px 4px;
+            color: #bbb;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .palette-list {
+            list-style: none;
+            margin: 0;
+            padding: 0 8px;
+        }
+
+        .palette-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 3px 0;
+            padding: 6px 8px;
+            border: 1px solid #3c3c3c;
+            border-left: 3px solid var(--wf-color);
+            border-radius: 4px;
+            background: #2d2d2d;
+            color: #ddd;
+            cursor: grab;
+        }
+
+        .palette-item:hover {
+            background: #37373d;
+        }
+
+        /* One colour per element kind, shared by palette items and canvas nodes */
+        .wf-source    { --wf-color: #4cb782; }
+        .wf-transform { --wf-color: #4a9fd8; }
+        .wf-sink      { --wf-color: #e8a33d; }
+
+        .wf-kind-icon {
+            color: var(--wf-color);
+        }
+
+        /* Workflow canvas tab */
+        .workflow-viewport {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            background: #1b1b1c;
+        }
+
+        .workflow-viewport.drag-over {
+            outline: 2px dashed #007acc;
+            outline-offset: -4px;
+        }
+
+        .workflow-canvas {
+            position: relative;
+            background-image: radial-gradient(circle, #3a3a3a 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .workflow-empty {
+            position: absolute;
+            top: 40%;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        .workflow-node {
+            position: absolute;
+            min-width: 150px;
+            border: 1px solid #454545;
+            border-top: 3px solid var(--wf-color);
+            border-radius: 5px;
+            background: #252526;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            font-size: 12px;
+            user-select: none;
+        }
+
+        .workflow-node.dragging {
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+            z-index: 10;
+        }
+
+        @keyframes wf-node-pulse {
+            0% {
+                border-color: #007acc;
+                border-top-color: #4fc1ff;
+                box-shadow: 0 0 0 0 rgba(0, 122, 204, 0.8), 0 2px 8px rgba(0, 0, 0, 0.4);
+            }
+            50% {
+                border-color: #4fc1ff;
+                border-top-color: #79d0ff;
+                box-shadow: 0 0 0 6px rgba(79, 193, 255, 0.35), 0 4px 16px rgba(0, 122, 204, 0.5);
+            }
+            100% {
+                border-color: #007acc;
+                border-top-color: #4fc1ff;
+                box-shadow: 0 0 0 0 rgba(0, 122, 204, 0.8), 0 2px 8px rgba(0, 0, 0, 0.4);
+            }
+        }
+
+        @keyframes wf-gear-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .workflow-node.executing {
+            border-color: #4fc1ff;
+            border-top-color: #4fc1ff;
+            animation: wf-node-pulse 1s infinite ease-in-out;
+            z-index: 5;
+        }
+
+        .workflow-node.executing .workflow-node-header {
+            background: rgba(0, 122, 204, 0.35);
+            color: #fff;
+        }
+
+        .workflow-node.executing .workflow-node-settings {
+            color: #4fc1ff;
+        }
+
+        .workflow-node.executing .workflow-node-settings svg {
+            animation: wf-gear-spin 2s infinite linear;
+            transform-origin: center;
+        }
+
+        .workflow-node-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            border-bottom: 1px solid #3a3a3a;
+            color: #eee;
+            font-weight: 600;
+            cursor: move;
+            touch-action: none;
+        }
+
+        .workflow-node-header span {
+            flex: 1;
+        }
+
+        .workflow-node-remove {
+            border: none;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            padding: 0 2px;
+        }
+
+        .workflow-node-remove:hover {
+            color: #fff;
+        }
+
+        .workflow-node-settings {
+            display: flex;
+            align-items: center;
+            border: none;
+            background: transparent;
+            color: #8a8a8a;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .workflow-node-settings:hover {
+            color: #4fc1ff;
+        }
+
+        .workflow-node-body {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 6px 0;
+        }
+
+        .workflow-ports {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .workflow-ports.telemetry {
+            flex-direction: row;
+            justify-content: center;
+            padding: 4px 8px 6px;
+            border-top: 1px dashed #3a3a3a;
+        }
+
+        .workflow-port {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #aaa;
+        }
+
+        .workflow-port.input {
+            margin-left: -6px;
+        }
+
+        .workflow-port.output {
+            flex-direction: row-reverse;
+            margin-right: -6px;
+        }
+
+        .workflow-port-dot {
+            width: 10px;
+            height: 10px;
+            border: 2px solid var(--port-color);
+            border-radius: 50%;
+            background: #1b1b1c;
+        }
+
+        /* One colour per data type, so an image port and a keypoints port look different */
+        .workflow-port             { --port-color: var(--wf-color); }
+        .workflow-port.port-image      { --port-color: #75beff; }
+        .workflow-port.port-disparity  { --port-color: #4ec9b0; }
+        .workflow-port.port-keypoints  { --port-color: #e2c08d; }
+        .workflow-port.port-matches    { --port-color: #d7ba7d; }
+        .workflow-port.port-pointcloud { --port-color: #f48771; }
+
+        .workflow-port.telemetry .workflow-port-dot {
+            border-color: #c586c0;
+        }
+
+        /* Ports double as connection handles */
+        .workflow-port {
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .workflow-port.connect-origin .workflow-port-dot,
+        .workflow-port.connect-candidate .workflow-port-dot {
+            background: var(--port-color);
+        }
+
+        .workflow-port.connect-candidate {
+            color: #fff;
+        }
+
+        .workflow-port.connect-hover .workflow-port-dot {
+            box-shadow: 0 0 0 4px rgba(0, 122, 204, 0.5);
+        }
+
+        .workflow-port.connect-disabled {
+            opacity: 0.35;
+        }
+
+        .workflow-canvas.connecting {
+            cursor: crosshair;
+        }
+
+        .workflow-edges {
+            position: absolute;
+            left: 0;
+            top: 0;
+            pointer-events: none;
+            overflow: visible;
+        }
+
+        .workflow-edge {
+            fill: none;
+            stroke: #8a9bb0;
+            stroke-width: 2;
+        }
+
+        .workflow-edge.telemetry {
+            stroke: #c586c0;
+            stroke-dasharray: 5 4;
+        }
+
+        .workflow-edge.selected {
+            stroke: #007acc;
+            stroke-width: 3;
+        }
+
+        .workflow-edge.preview {
+            stroke: #007acc;
+            stroke-dasharray: 6 4;
+        }
+
+        .workflow-edge-hit {
+            fill: none;
+            stroke: transparent;
+            stroke-width: 12;
+            pointer-events: stroke;
+            cursor: pointer;
+        }
+
+        .workflow-edge-group:hover .workflow-edge:not(.selected) {
+            stroke: #c0cbd8;
+        }
+
+        .workflow-edge-remove {
+            position: absolute;
+            z-index: 5;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 1px solid #007acc;
+            border-radius: 50%;
+            background: #252526;
+            color: #fff;
+            font-size: 11px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .workflow-edge-remove:hover {
+            background: #007acc;
+        }
+
+        .workflow-viewport:focus {
+            outline: none;
+        }
+
+        nav button[data-tooltip] {
+            position: relative;
+        }
+
+        nav button[data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: calc(100% + 8px);
+            top: 50%;
+            z-index: 20;
+            padding: 5px 8px;
+            border: 1px solid #555;
+            border-radius: 3px;
+            background: #252526;
+            color: #eee;
+            font-size: 12px;
+            font-weight: normal;
+            line-height: 1.2;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(-50%);
+            transition: opacity 120ms ease;
+        }
+
+        nav button[data-tooltip]:hover::after,
+        nav button[data-tooltip]:focus-visible::after {
+            opacity: 1;
+        }
+
+        /* Side bar (Explorer or Cameras), opened from the Activity Bar */
+        .side-bar {
+            width: 260px;
+            flex: none;
+            display: flex;
+            flex-direction: column;
+            background: #252526;
+            border-right: 1px solid #333;
+            overflow-y: auto;
+            font-size: 13px;
+        }
+
+        .side-bar[hidden] {
+            display: none;
+        }
+
+        .side-bar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #bbb;
+        }
+
+        .open-folder-btn {
+            margin: 0 12px 10px;
+            padding: 6px;
+            border: none;
+            border-radius: 3px;
+            background: #0e639c;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .open-folder-btn:hover {
+            background: #1177bb;
+        }
+
+        .folder-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 11px;
+            color: #ccc;
+        }
+
+        .file-tree {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .file-tree .file-tree {
+            padding-left: 14px;
+        }
+
+        .folder-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            color: #ccc;
+            font-weight: 600;
+            cursor: default;
+        }
+
+        .folder-chevron {
+            width: 10px;
+            color: #aaa;
+            font-size: 12px;
+        }
+
+        .folder-row:hover {
+            background: #2a2d2e;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 12px 3px 24px;
+            color: #ccc;
+            cursor: pointer;
+        }
+
+        /* Long names get "…" instead of pushing the icon or overflowing the side bar. */
+        .folder-name span,
+        .file-item span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .icon {
+            flex: none;
+            width: 16px;
+            height: 16px;
+            color: #999;
+        }
+
+        .icon-folder { color: #dcb67a; }
+        .icon-png    { color: #b180d7; }
+        .icon-jpg    { color: #e8a33d; }
+        .icon-bmp    { color: #4a9fd8; }
+        .icon-webp   { color: #4cb782; }
+        .icon-camera { color: #75beff; }
+        .icon-algorithm { color: #c586c0; }
+
+        .header-btn {
+            border: none;
+            background: transparent;
+            color: #bbb;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+
+        .header-btn:hover {
+            color: #fff;
+        }
+
+        /* Camera tree: one root node per camera, nested key/value rows below it */
+        .tree {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .tree-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            padding-top: 2px;
+            padding-bottom: 2px;
+            padding-right: 12px;
+            color: #ccc;
+            line-height: 18px;
+        }
+
+        .tree-row:hover {
+            background: #2a2d2e;
+        }
+
+        .tree-expandable {
+            cursor: pointer;
+        }
+
+        .tree-row .icon {
+            margin-top: 1px;
+        }
+
+        .tree-root .tree-key {
+            font-weight: bold;
+            color: #e0e0e0;
+        }
+
+        .tree-open-btn {
+            margin-left: auto;
+            border: none;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            padding: 1px 4px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            opacity: 0.7;
+        }
+
+        .tree-row:hover .tree-open-btn {
+            opacity: 1;
+            color: #4fc1ff;
+        }
+
+        .tree-open-btn:hover {
+            background: #3a3d3e;
+            color: #fff;
+        }
+
+        .tree-chevron {
+            flex: none;
+            width: 10px;
+            color: #aaa;
+            cursor: pointer;
+        }
+
+        .tree-key {
+            flex: none;
+            color: #9cdcfe;
+        }
+
+        .tree-value {
+            min-width: 0;
+            color: #ce9178;
+            overflow-wrap: anywhere;
+        }
+
+        .tree-null {
+            color: #777;
+        }
+
+        .tree-preview {
+            min-width: 0;
+            color: #888;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .tree-error {
+            padding-left: 12px;
+            color: #f48771;
+        }
+
+        .file-item:hover {
+            background: #2a2d2e;
+        }
+
+        .file-item.active {
+            background: #37373d;
+            color: #fff;
+        }
+
+        .file-list-empty {
+            padding: 4px 24px;
+            color: #777;
+        }
+
+        /* Right side: one or more editor groups side by side, like a code editor's split view */
+        .editor-area {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .editor-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        /* Draggable divider between groups (VS Code calls it a "sash") */
+        .sash {
+            flex: none;
+            width: 4px;
+            background: #333;
+            cursor: col-resize;
+            touch-action: none;
+        }
+
+        .sash:hover,
+        .sash.active {
+            background: #007acc;
+        }
+
+        /* While resizing, keep the col-resize cursor everywhere and stop text/image selection. */
+        body.resizing {
+            cursor: col-resize;
+            user-select: none;
+        }
+
+        .tab-bar {
+            display: flex;
+            background: #252526;
+            border-bottom: 1px solid #333;
+            overflow-x: auto;
+        }
+
+        .tab-bar-spacer {
+            flex: 1;
+        }
+
+        .split-btn {
+            border: none;
+            background: transparent;
+            color: #aaa;
+            font-size: 16px;
+            padding: 0 10px;
+            cursor: pointer;
+        }
+
+        .split-btn:hover:not(:disabled) {
+            color: #fff;
+        }
+
+        .split-btn:disabled {
+            opacity: 0.3;
+            cursor: default;
+        }
+
+        .tab {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: #2d2d2d;
+            border-right: 1px solid #1e1e1e;
+            color: #aaa;
+            cursor: pointer;
+            white-space: nowrap;
+            font-size: 13px;
+        }
+
+        .tab:hover {
+            color: #fff;
+        }
+
+        .tab.active {
+            background: #1e1e1e;
+            color: #fff;
+            border-top: 2px solid #555;
+        }
+
+        /* Only the focused group's active tab gets the blue accent, as in VS Code. */
+        .editor-group.active .tab.active {
+            border-top-color: #007acc;
+        }
+
+        .tab.dragging {
+            opacity: 0.4;
+        }
+
+        .tab.drop-before {
+            box-shadow: inset 2px 0 0 #007acc;
+        }
+
+        .tab.drop-after {
+            box-shadow: inset -2px 0 0 #007acc;
+        }
+
+        .tab-bar.drag-over {
+            background: #2a3a4a;
+        }
+
+        /* Drop overlay on a group's content: whole area = move here, left/right half = split. */
+        .group-content.drag-over::after,
+        .group-content.drop-left::after,
+        .group-content.drop-right::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            background: rgba(0, 122, 204, 0.25);
+            pointer-events: none;
+        }
+
+        .group-content.drag-over::after {
+            left: 0;
+            right: 0;
+        }
+
+        .group-content.drop-left::after {
+            left: 0;
+            width: 50%;
+        }
+
+        .group-content.drop-right::after {
+            right: 0;
+            width: 50%;
+        }
+
+        .tab .close-btn {
+            border: none;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .tab .close-btn:hover {
+            background: #444;
+        }
+
+        /* Toolbar shown above the image for the active tab */
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 8px;
+            background: #252526;
+            border-bottom: 1px solid #333;
+        }
+
+        .toolbar button {
+            border: 1px solid #444;
+            background: #333;
+            color: #ccc;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .toolbar button:hover {
+            background: #3a3d41;
+            color: #fff;
+        }
+
+        .toolbar button.active {
+            background: #007acc;
+            border-color: #007acc;
+            color: #fff;
+        }
+
+        .toolbar button.reset-btn {
+            margin-left: auto;
+            color: #f0b36a;
+        }
+
+        .toolbar button.reset-btn:hover {
+            background: #5a3d20;
+            color: #fff;
+        }
+
+        .stereo-modal {
+            width: min(560px, calc(100vw - 40px));
+        }
+
+        .modal-help {
+            color: #aaa;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .matrix-editor {
+            margin: 10px 0;
+            padding: 8px;
+            border: 1px solid #444;
+            border-radius: 4px;
+        }
+
+        .matrix-editor legend {
+            padding: 0 5px;
+            color: #ccc;
+            font-size: 12px;
+        }
+
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 5px;
+            align-items: center;
+        }
+
+        .matrix-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .matrix-grid input {
+            width: 100%;
+            min-width: 0;
+            padding: 5px;
+            border: 1px solid #555;
+            border-radius: 3px;
+            background: #1e1e1e;
+            color: #eee;
+        }
+
+        .matrix-label {
+            color: #888;
+            font-family: monospace;
+            font-size: 11px;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.55);
+        }
+
+        .modal-backdrop[hidden] {
+            display: none;
+        }
+
+        .modal {
+            width: min(360px, calc(100vw - 32px));
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            padding: 18px;
+            background: #252526;
+            border: 1px solid #555;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+        }
+
+        .modal.modal-wide {
+            width: min(720px, calc(100vw - 32px));
+        }
+
+        .modal.workflow-alert {
+            width: min(440px, calc(100vw - 32px));
+        }
+
+        .workflow-alert-msg {
+            margin: 0 0 12px;
+            color: #ccc;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .workflow-alert-path {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin: 0 0 16px;
+            font-size: 11px;
+            color: #888;
+        }
+
+        .workflow-alert-path code {
+            padding: 6px 8px;
+            background: #181818;
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: #4fc1ff;
+            word-break: break-all;
+            user-select: all;
+            font-family: Menlo, Monaco, "Courier New", monospace;
+        }
+
+        .modal h2 {
+            margin: 0 0 16px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .form-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 10px 0;
+            color: #ccc;
+            font-size: 13px;
+        }
+
+        .form-row input[type="number"] {
+            width: 100px;
+            padding: 5px;
+            border: 1px solid #555;
+            background: #1e1e1e;
+            color: #fff;
+        }
+
+        .form-row input[type="text"] {
+            flex: 1;
+            min-width: 0;
+            padding: 5px;
+            border: 1px solid #555;
+            background: #1e1e1e;
+            color: #fff;
+        }
+
+        .form-row input[readonly] {
+            color: #bbb;
+        }
+
+        .form-row .browse-btn {
+            flex: none;
+            padding: 5px 10px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: #333;
+            color: #ddd;
+            cursor: pointer;
+        }
+
+        .form-row .browse-btn:hover {
+            background: #3a3a3a;
+        }
+
+        .json-editor-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            background: #1e1e1e;
+            overflow: hidden;
+        }
+
+        .json-editor-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: #252526;
+            border-bottom: 1px solid #333;
+            font-size: 12px;
+            flex-wrap: wrap;
+        }
+
+        .json-editor-btn {
+            border: 1px solid #444;
+            background: #333;
+            color: #ccc;
+            font-size: 12px;
+            padding: 3px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .json-editor-btn:hover {
+            background: #3c3c3c;
+            color: #fff;
+        }
+
+        .json-editor-btn.primary {
+            background: #0e639c;
+            border-color: #1177bb;
+            color: #fff;
+        }
+
+        .json-editor-btn.primary:hover {
+            background: #1177bb;
+        }
+
+        .json-editor-status {
+            margin-left: auto;
+            font-size: 12px;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 380px;
+        }
+
+        .json-editor-status.status-modified {
+            color: #e2c08d;
+        }
+
+        .json-editor-status.status-saved {
+            color: #89d185;
+        }
+
+        .json-editor-status.status-error {
+            color: #f48771;
+        }
+
+        .json-editor-body {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .json-editor-textarea {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            padding: 12px 16px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            border: none;
+            outline: none;
+            resize: none;
+            tab-size: 2;
+            white-space: pre;
+            overflow: auto;
+        }
+
+        .json-editor-statusbar {
+            display: flex;
+            justify-content: space-between;
+            font-family: Menlo, Monaco, Consolas, monospace;
+            font-size: 11px;
+        }
+
+        .tab-rename {
+            min-width: 90px;
+            max-width: 180px;
+            padding: 2px 6px;
+            border: 1px solid #007acc;
+            border-radius: 3px;
+            background: #1e1e1e;
+            color: #fff;
+            font: inherit;
+            outline: none;
+            box-shadow: 0 0 4px rgba(0, 122, 204, 0.6);
+        }
+
+        .plan-btn {
+            margin-left: 12px;
+            padding: 1px 8px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 3px;
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .plan-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .plan-ok,
+        .plan-problem {
+            margin-left: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .plan-problem {
+            color: #ffd7d7;
+        }
+
+        .form-row input:disabled {
+            opacity: 0.45;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 18px;
+        }
+
+        .modal-actions button {
+            padding: 6px 12px;
+            border: 1px solid #555;
+            background: #333;
+            color: #ddd;
+            cursor: pointer;
+        }
+
+        .modal-actions .primary {
+            background: #007acc;
+            border-color: #007acc;
+            color: #fff;
+        }
+
+        /* Zoom controls shown above the image, separate from the algorithm toolbar */
+        .zoom-bar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: #252526;
+            border-bottom: 1px solid #333;
+        }
+
+        .zoom-bar button {
+            border: 1px solid #444;
+            background: #333;
+            color: #ccc;
+            font-size: 13px;
+            width: 26px;
+            height: 26px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .zoom-bar button:hover {
+            background: #3a3d41;
+            color: #fff;
+        }
+
+        .zoom-bar .zoom-level {
+            width: auto;
+            min-width: 48px;
+            padding: 0 8px;
+            font-size: 12px;
+        }
+
+        .group-content {
+            position: relative;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: auto;
+        }
+
+        .image-view {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+            overflow: auto;
+        }
+
+.image-view img {
+            border-radius: 4px;
+            display: block;
+            /* margin:auto centers the image but, unlike justify/align center, doesn't clip its
+               top/left edge out of scroll reach when zoomed larger than the pane. */
+            margin: auto;
+        }
+
+        .group-content .empty-state {
+            margin: auto;
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* Status bar below the image, like an IDE's bottom info bar */
+        .status-bar {
+            display: flex;
+            gap: 16px;
+            padding: 4px 10px;
+            background: #007acc;
+            color: #fff;
+            font-size: 12px;
+            border-top: 1px solid #333;
+        }
+
+        .workflow-status-bar {
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px 10px;
+        }
+
+        .workflow-status-bar > span:first-child {
+            flex: 1 1 320px;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .workflow-status-bar .plan-btn {
+            flex: 0 0 auto;
+            margin-left: 0;
+        }
+
+        .workflow-status-bar .plan-ok,
+        .workflow-status-bar .plan-problem {
+            flex: 1 1 100%;
+            margin-left: 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav>
+        <button id="explorer-btn" title="Explorer">📁</button>
+        <button id="results-btn" title="Workflow results" data-tooltip="Results" aria-label="Workflow results">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 7.2c0-.7.5-1.2 1.2-1.2h4l1.6 2h9c.7 0 1.2.5 1.2 1.2v8.6c0 .7-.5 1.2-1.2 1.2H4.2c-.7 0-1.2-.5-1.2-1.2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M7.5 15.5v-3M12 15.5v-5M16.5 15.5v-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+        </button>
+        <button id="cameras-btn" title="Cameras">📷</button>
+        <button id="algorithms-btn" title="Algorithms">🧩</button>
+        <button title="2-DoF planar motion" data-tooltip="2-DoF" aria-label="2-DoF planar motion">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 19h14M5 19V5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                <path d="M5 19l5-2M5 19l2-5M5 19h13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                <circle cx="13" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M13 6.2a4.8 4.8 0 0 1 4.8 4.8M13 15.8A4.8 4.8 0 0 1 8.2 11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+        </button>
+        <button title="3-DoF spatial translation" data-tooltip="3-DoF" aria-label="3-DoF spatial translation">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 4v16M4 12h16M12 4l-2 3M12 4l2 3M20 12l-3-2M20 12l-3 2M12 20l-2-3M12 20l2-3M4 12l3-2M4 12l3 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M7 8l5-3 5 3v6l-5 3-5-3z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+            </svg>
+        </button>
+        <button title="6-DoF rigid-body pose" data-tooltip="6-DoF" aria-label="6-DoF rigid-body pose">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 12L5 17M12 12l7 5M12 12V4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M5 17l3-.3M5 17l1.3-2.7M19 17l-3-.3M19 17l-1.3-2.7M12 4l-1.6 2.6M12 4l1.6 2.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <ellipse cx="12" cy="12" rx="5.5" ry="2.4" fill="none" stroke="currentColor" stroke-width="1.2" transform="rotate(-28 12 12)"/>
+                <ellipse cx="12" cy="12" rx="5.5" ry="2.4" fill="none" stroke="currentColor" stroke-width="1.2" transform="rotate(32 12 12)"/>
+            </svg>
+        </button>
+        <button id="workflow-btn" title="Image processing workflow" data-tooltip="Workflow" aria-label="Image processing workflow">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="2.5" y="9.5" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="16.5" y="3.5" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="16.5" y="15.5" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M7.5 12C12 12 12 6 16.5 6M7.5 12C12 12 12 18 16.5 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+        </button>
+        <button class="settings-btn" title="Settings" aria-label="Settings">⚙️</button>
+    </nav>
+
+    <aside class="side-bar" id="side-bar" hidden></aside>
+
+    <div class="editor-area" id="editor-area"></div>
+
+    <div class="modal-backdrop" id="threshold-modal" hidden></div>
+    <div class="modal-backdrop" id="disparity-modal" hidden></div>
+
+    <script type="module">
+        import { Controller, LocalRunner } from './Controller.js';
+        import { TabModel, SideBarModel, ExplorerModel, SpecModel } from './Data.js';
+        import { View } from './View.js';
+
+        // Buttons shown in the toolbar above each image. More algorithms can be appended here later.
+        const TOOLBAR_ACTIONS = [
+            'URF', 'SIFT', 'ORB', 'FAST', 'KAZE', 'BRISK',
+            'SOBEL X', 'SOBEL Y', 'SOBEL XY', 'CORNERS', 'THRESHOLD', 'FOURIER',
+            'CANNY', 'HISTOGRAM', 'CONTOURS', 'MEDIAN', 'GAUSSIAN', 'STRETCH', 'UNDISTORT', 'REMAP', 'CONVERT', 'DISPARITY', 'SURFACE', 'RESET'
+        ];
+
+        const model = new TabModel();
+        const firstTabId = model.addTab({ label: 'one.png', src: 'img/one.png' });
+        model.addTab({ label: 'two.png', src: 'img/two.png' });
+        model.selectTab(firstTabId);
+
+        const sideBarModel = new SideBarModel();
+        const explorer = new ExplorerModel();
+        const results = new ExplorerModel();
+        const specs = {
+            cameras: new SpecModel('cameras'),
+            algorithms: new SpecModel('algorithms'),
+            elements: new SpecModel('elements')
+        };
+
+        const view = new View(model, {
+            editorArea: document.getElementById('editor-area'),
+            sideBar: document.getElementById('side-bar'),
+            activityButtons: {
+                explorer: document.getElementById('explorer-btn'),
+                results: document.getElementById('results-btn'),
+                cameras: document.getElementById('cameras-btn'),
+                algorithms: document.getElementById('algorithms-btn'),
+                elements: document.getElementById('workflow-btn')
+            }
+        }, TOOLBAR_ACTIONS, {
+            sideBarModel,
+            explorer,
+            results,
+            specs,
+            thresholdModal: document.getElementById('threshold-modal'),
+            disparityModal: document.getElementById('disparity-modal')
+        });
+
+        const controller = new Controller(model, view, new LocalRunner(), { sideBar: sideBarModel, explorer, results, specs });
+        view.setController(controller);
+        window.__controller = controller;
+        window.__model = model;
+
+        view.render();
+    </script>
+
+</body>
+</html>

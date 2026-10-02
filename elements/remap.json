@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "id": "remap",
+  "name": "Remap",
+  "kind": "transform",
+  "category": "stereo",
+  "icon": "transform",
+  "summary": "Applies coordinate mapping (cv::remap) to rectify epipolar lines or correct distortion.",
+  "inputs": [
+    {
+      "name": "image",
+      "type": "image"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "image",
+      "type": "image"
+    }
+  ],
+  "params": {
+    "map_x": {
+      "type": "file",
+      "label": "Map X file (or preset: identity, flip_h, flip_v, flip_hv)",
+      "default": "identity",
+      "description": "Path to XML/YAML/EXR file containing map_x (and map_y), or a preset name like identity, flip_h, flip_v, flip_hv."
+    },
+    "map_y": {
+      "type": "file",
+      "label": "Map Y file (optional if embedded in Map X)",
+      "default": "",
+      "description": "Path to separate Map Y file if not embedded in Map X."
+    },
+    "interpolation": {
+      "type": "enum",
+      "label": "Interpolation",
+      "default": "linear",
+      "values": ["linear", "nearest", "cubic", "lanczos4"],
+      "description": "Interpolation method."
+    },
+    "borderMode": {
+      "type": "enum",
+      "label": "Border Mode",
+      "default": "constant",
+      "values": ["constant", "replicate", "reflect", "reflect101", "wrap"],
+      "description": "Extrapolation method for pixels outside boundaries."
+    }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-remap/build/remap_cli",
+    "args": [
+      "{in.image}",
+      "{out.image}",
+      "{param.map_x}",
+      "{param.map_y}",
+      "{param.interpolation}",
+      "{param.borderMode}"
+    ]
+  }
+}

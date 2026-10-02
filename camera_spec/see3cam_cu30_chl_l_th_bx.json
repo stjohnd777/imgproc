@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "id": "see3cam-cu30-chl-l-th-bx",
+  "name": "See3CAM_CU30_CHL_L_TH_BX",
+  "manufacturer": "e-con Systems",
+  "model": "See3CAM_CU30_CHL_L_TH_BX",
+  "partNumberOnUnit": "See3CamAM_CU30_CHL_L_TH_BX",
+  "family": "See3CAM_CU30",
+  "serialNumber": null,
+  "notes": [
+    "This exact suffix isn't in e-con's public catalog, but it clearly belongs to the See3CAM_CU30 family; values below are the family's.",
+    "The suffix L_TH_BX may encode a lens/enclosure configuration. The focal length is deliberately not inferred from it.",
+    "The AR0330-based CU30 was used by Xilinx with the Zynq UltraScale+ reVISION stack, which is likely why this unit came with the ZCU104/Zynq hardware."
+  ],
+  "sensor": {
+    "model": "onsemi AR0330",
+    "technology": "CMOS",
+    "chroma": "color",
+    "opticalFormat": "1/3\"",
+    "nominalMegapixels": 3.4,
+    "resolution": { "width": 2304, "height": 1536 },
+    "pixelPitchUm": { "x": 2.2, "y": 2.2 },
+    "activeAreaMm": { "width": 5.0688, "height": 3.3792, "diagonal": 6.092 },
+    "shutter": "electronic rolling shutter; global-reset capability requires appropriate firmware/configuration",
+    "rawBits": 10,
+    "dynamicRangeDb": 69.5,
+    "snrDb": 39,
+    "spectral": "Good near-infrared responsivity; suitable for day/night/NIR configurations."
+  },
+  "interface": {
+    "type": "USB 3.1 Gen 1 / USB 3.0",
+    "protocol": "UVC"
+  },
+  "lensMount": "M12 / S-mount",
+  "output": {
+    "formats": ["UYVY", "MJPEG"],
+    "frameRates": [
+      { "mode": "1920 x 1080", "maxFps": 60 },
+      { "mode": "3 MP", "maxFps": 60, "note": "depending on output mode" }
+    ]
+  },
+  "hardwareTrigger": null,
+  "lens": null,
+  "intrinsics": null,
+  "openQuestions": [
+    "Exact lens fitted to this unit (focal length, aperture, filter) -- the most important unknown for the imaging model.",
+    "Hardware trigger is only listed for non-enclosed CU30 versions; confirm whether this unit has it."
+  ],
+  "sources": [
+    "https://www.e-consystems.com/ar0330-lowlight-usb-gen1-box-camera-faq.asp",
+    "https://www.e-consystems.com/ar0330-lowlight-usb-cameraboard.asp",
+    "https://www.e-consystems.com/news2016_17.asp"
+  ]
+}

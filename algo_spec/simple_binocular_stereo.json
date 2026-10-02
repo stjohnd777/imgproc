@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "id": "simple-binocular-stereo",
+  "name": "Simple Binocular Stereo",
+  "vertical": "stereo",
+  "summary": "Computes 3D points from a left/right image pair using the two cameras' intrinsics and extrinsics.",
+  "inputs": [
+    {
+      "name": "left",
+      "type": "image",
+      "required": true,
+      "description": "Left image of the stereo pair."
+    },
+    {
+      "name": "right",
+      "type": "image",
+      "required": true,
+      "description": "Right image of the stereo pair."
+    },
+    {
+      "name": "leftCamera",
+      "type": "camera",
+      "required": true,
+      "description": "Left camera model.",
+      "fields": {
+        "K": { "type": "matrix3x3", "description": "Intrinsic matrix." },
+        "D": { "type": "vector", "description": "Distortion coefficients." },
+        "T": { "type": "matrix4x4", "description": "Extrinsics: pose relative to the rig frame." }
+      }
+    },
+    {
+      "name": "rightCamera",
+      "type": "camera",
+      "required": true,
+      "description": "Right camera model.",
+      "fields": {
+        "K": { "type": "matrix3x3", "description": "Intrinsic matrix." },
+        "D": { "type": "vector", "description": "Distortion coefficients." },
+        "T": { "type": "matrix4x4", "description": "Extrinsics: pose relative to the rig frame." }
+      }
+    }
+  ],
+  "parameters": [],
+  "outputs": [
+    {
+      "name": "point3d",
+      "type": "point3dArray",
+      "description": "Triangulated 3D points."
+    },
+    {
+      "name": "z",
+      "type": "number",
+      "description": "Scalar depth output."
+    }
+  ],
+  "telemetry": [
+    {
+      "name": "detects",
+      "type": "keypointArray",
+      "description": "Keypoints detected per image."
+    },
+    {
+      "name": "matches",
+      "type": "matchArray",
+      "description": "Left/right keypoint correspondences."
+    }
+  ],
+  "openQuestions": [
+    "Parameters beyond the images and camera models (e.g. detector, matcher, disparity range) are not yet defined.",
+    "Whether the input pair is assumed already rectified, or rectification is part of this algorithm.",
+    "Units and reference frame for point3d, and the meaning of the scalar z alongside it."
+  ]
+}

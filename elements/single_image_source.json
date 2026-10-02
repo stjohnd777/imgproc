@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "single_image_source",
+  "name": "Single Image",
+  "kind": "source",
+  "icon": "image",
+  "summary": "Emits one image file.",
+  "inputs": [],
+  "outputs": [
+    { "name": "image", "type": "image" }
+  ],
+  "params": {
+    "image": { "type": "file", "label": "Image file", "default": null }
+  },
+  "telemetry": [],
+  "exec": { "builtin": "single_image" }
+}

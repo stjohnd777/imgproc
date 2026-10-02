@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "histogram",
+  "name": "Histogram",
+  "kind": "transform",
+  "category": "analysis",
+  "icon": "transform",
+  "summary": "Rendered 256-bin grayscale intensity histogram. The output is a chart, not the source image.",
+  "inputs": [
+    {
+      "name": "image",
+      "type": "image"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "chart",
+      "type": "image"
+    }
+  ],
+  "params": {
+    "bins": {
+      "type": "number",
+      "default": 256,
+      "min": 2,
+      "max": 256,
+      "step": 1
+    }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-histogram/build/histogram_cli",
+    "args": [
+      "{in.image}",
+      "{out.chart}",
+      "{param.bins}"
+    ]
+  }
+}

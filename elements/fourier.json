@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "fourier",
+  "name": "Fourier",
+  "kind": "transform",
+  "category": "analysis",
+  "icon": "transform",
+  "summary": "Log-scaled 2D DFT magnitude spectrum, shifted so low frequencies sit at the centre. The output may be padded to an optimal DFT size, so it can be larger than the input.",
+  "inputs": [
+    { "name": "image", "type": "image" }
+  ],
+  "outputs": [
+    { "name": "spectrum", "type": "image" }
+  ],
+  "params": {},
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-fourier/build/fourier_cli",
+    "args": ["{in.image}", "{out.spectrum}"]
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "canny",
+  "name": "Canny",
+  "kind": "transform",
+  "category": "filter",
+  "icon": "transform",
+  "summary": "Canny edge detector. Outputs a single-channel edge map.",
+  "inputs": [
+    {
+      "name": "image",
+      "type": "image"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "image",
+      "type": "image"
+    }
+  ],
+  "params": {
+    "low": {
+      "type": "number",
+      "default": 80,
+      "min": 0,
+      "max": 255,
+      "step": 1
+    },
+    "high": {
+      "type": "number",
+      "default": 180,
+      "min": 0,
+      "max": 255,
+      "step": 1
+    },
+    "apertureSize": {
+      "type": "number",
+      "default": 3,
+      "min": 3,
+      "max": 7,
+      "step": 2
+    },
+    "l2gradient": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-canny/build/canny_cli",
+    "args": [
+      "{in.image}",
+      "{out.image}",
+      "{param.low}",
+      "{param.high}",
+      "{param.apertureSize}",
+      "{param.l2gradient}"
+    ]
+  }
+}

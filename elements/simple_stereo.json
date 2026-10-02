@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "id": "simple_stereo",
+  "name": "Simple Stereo",
+  "kind": "transform",
+  "category": "stereo",
+  "icon": "transform",
+  "summary": "Sparse feature-based stereo matching on rectified left/right images using 1D epipolar correlation. Outputs a matched preview, matches JSON, 3D point cloud, and mean 3D position.",
+  "inputs": [
+    {
+      "name": "imageL",
+      "type": "image"
+    },
+    {
+      "name": "imageR",
+      "type": "image"
+    },
+    {
+      "name": "leftKeypoints",
+      "type": "keypoints"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "preview",
+      "type": "image"
+    },
+    {
+      "name": "matches",
+      "type": "matches"
+    },
+    {
+      "name": "points3d",
+      "type": "pointcloud"
+    },
+    {
+      "name": "positionEstimate",
+      "type": "text"
+    }
+  ],
+  "params": {
+    "maxDisparity": {
+      "type": "number",
+      "label": "Max disparity (px)",
+      "default": 64,
+      "min": 1,
+      "max": 1000,
+      "step": 1,
+      "description": "Maximum horizontal pixel difference (d = ul - ur) to search."
+    },
+    "patchRadius": {
+      "type": "number",
+      "label": "Patch radius (px)",
+      "default": 4,
+      "min": 1,
+      "max": 32,
+      "step": 1,
+      "description": "Half-window size for correlation matching (patch width = 2*r + 1)."
+    },
+    "vTolerance": {
+      "type": "number",
+      "label": "Vertical tolerance (px)",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.5,
+      "description": "Vertical search band around vl (for slightly imperfect rectification)."
+    },
+    "minCorrelation": {
+      "type": "number",
+      "label": "Min correlation score",
+      "default": 0.60,
+      "min": -1.0,
+      "max": 1.0,
+      "step": 0.05,
+      "description": "Normalized cross-correlation threshold for accepting matches."
+    },
+    "baselineMm": {
+      "type": "number",
+      "label": "Baseline (mm)",
+      "default": 120.0,
+      "min": 0.1,
+      "max": 100000.0,
+      "step": 1.0,
+      "description": "Physical distance between left and right camera optical centers in mm."
+    },
+    "fx": {
+      "type": "number",
+      "label": "Focal length fx (px)",
+      "default": 3200.0,
+      "min": 0.1,
+      "max": 100000.0,
+      "step": 1.0,
+      "description": "Rectified camera focal length in pixels. Blackfly 1288x964 with a 12 mm lens is nominally 3200 px; use calibrated values when available."
+    },
+    "fy": {
+      "type": "number",
+      "label": "Focal length fy (px)",
+      "default": 3200.0,
+      "min": 0.1,
+      "max": 100000.0,
+      "step": 1.0,
+      "description": "Rectified camera vertical focal length in pixels. Blackfly 1288x964 with a 12 mm lens is nominally 3200 px; use calibrated values when available."
+    },
+    "cx": {
+      "type": "number",
+      "label": "Principal point cx (px, -1 = center)",
+      "default": -1.0,
+      "min": -1.0,
+      "max": 100000.0,
+      "step": 0.5,
+      "description": "Principal point horizontal coordinate (-1 defaults to width/2)."
+    },
+    "cy": {
+      "type": "number",
+      "label": "Principal point cy (px, -1 = center)",
+      "default": -1.0,
+      "min": -1.0,
+      "max": 100000.0,
+      "step": 0.5,
+      "description": "Principal point vertical coordinate (-1 defaults to height/2)."
+    }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-simple-stereo/build/simple_stereo_cli",
+    "args": [
+      "{in.imageL}",
+      "{in.imageR}",
+      "{in.leftKeypoints}",
+      "{out.preview}",
+      "{out.matches}",
+      "{out.points3d}",
+      "{param.maxDisparity}",
+      "{param.patchRadius}",
+      "{param.vTolerance}",
+      "{param.minCorrelation}",
+      "{param.baselineMm}",
+      "{param.fx}",
+      "{param.fy}",
+      "{param.cx}",
+      "{param.cy}",
+      "{out.positionEstimate}"
+    ]
+  }
+}

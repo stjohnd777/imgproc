@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "id": "sobel",
+  "name": "Sobel",
+  "kind": "transform",
+  "category": "filter",
+  "icon": "transform",
+  "summary": "Sobel edge gradient in x, y or both.",
+  "inputs": [
+    {
+      "name": "image",
+      "type": "image"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "image",
+      "type": "image"
+    }
+  ],
+  "params": {
+    "mode": {
+      "type": "enum",
+      "options": [
+        "x",
+        "y",
+        "xy"
+      ],
+      "default": "xy"
+    },
+    "ksize": {
+      "type": "number",
+      "default": 3,
+      "min": 1,
+      "max": 7,
+      "step": 2,
+      "description": "Odd kernel size."
+    }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-sobel/build/sobel_cli",
+    "args": [
+      "{in.image}",
+      "{out.image}",
+      "{param.mode}",
+      "{param.ksize}"
+    ]
+  }
+}
