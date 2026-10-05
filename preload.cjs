@@ -30,7 +30,9 @@ contextBridge.exposeInMainWorld('specs', {
 
 contextBridge.exposeInMainWorld('results', {
     // Lists the runs folder from app.json as a tree, same shape as explorer.openFolder.
-    list: () => ipcRenderer.invoke('results:list')
+    list: () => ipcRenderer.invoke('results:list'),
+    // Deletes one workflow or run folder under results/runs and returns the refreshed tree.
+    delete: path => ipcRenderer.invoke('results:delete', path)
 });
 
 contextBridge.exposeInMainWorld('workflow', {
@@ -43,6 +45,7 @@ contextBridge.exposeInMainWorld('workflow', {
     open: () => ipcRenderer.invoke('workflow:open'),
     save: (filePath, document) => ipcRenderer.invoke('workflow:save', filePath, document),
     saveAs: document => ipcRenderer.invoke('workflow:saveAs', document),
+    openArtifact: filePath => ipcRenderer.invoke('workflow:openArtifact', filePath),
     // Progress events. `on` returns a function that removes the listener.
     on: (event, handler) => {
         const allowed = ['started', 'frame', 'finished', 'failed', 'step'];

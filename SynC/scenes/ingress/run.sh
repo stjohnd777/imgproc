@@ -14,4 +14,5 @@ if [ ! -f "$BLENDER" ]; then
 fi
 
 echo "Running build_ingress_scene.py with Blender from $DIR..."
-"$BLENDER" --background --python "$DIR/build_ingress_scene.py" -- "$@"
+"$BLENDER" --background --python-exit-code 1 \
+    --python "$DIR/build_ingress_scene.py" -- "$@"

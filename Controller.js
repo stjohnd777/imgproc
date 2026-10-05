@@ -45,8 +45,26 @@ export class Controller {
     }
 
     toggleResultsFolder(path) {
+        this.results.selectedPath = path;
         this.results.toggleFolder(path);
         this.view.render();
+    }
+
+    selectResultFolder(path) {
+        this.results.selectedPath = path;
+        this.view.render();
+    }
+
+    async deleteResult(path, kind) {
+        const label = kind === 'workflow' ? 'workflow and all of its runs' : 'run';
+        if (!window.confirm(`Delete this ${label} permanently? Its files cannot be recovered.`)) return;
+        try {
+            await window.results.delete(path);
+            this.results.selectedPath = null;
+            await this.reloadResults();
+        } catch (err) {
+            window.alert(`Could not delete result: ${err.message}`);
+        }
     }
 
     async reloadSpecs(kind) {
@@ -283,6 +301,9 @@ export class Controller {
             }),
             window.workflow.on('frame', info => {
                 tab.activeNodeId = null;
+                tab.latestArtifacts = Object.fromEntries(info.steps
+                    .filter(step => step.nodeId)
+                    .map(step => [step.nodeId, step.artifacts ?? []]));
                 this.view.highlightExecutingNode(tab.id, null);
                 tab.runProgress = {
                     text: `frame ${info.frame}/${info.frames}  ${info.ms}ms${info.late ? '  (late)' : ''}`,
@@ -365,6 +386,35 @@ export class Controller {
             this.model.addTab({ label: file.name, src: file.url, path: file.path });
         }
         this.view.render();
+    }
+
+    async openWorkflowArtifact(tabId, nodeId, portName) {
+        const workflowTab = this.model.getTab(tabId);
+        const group = this.model.findGroupOfTab(tabId);
+        const artifact = workflowTab?.latestArtifacts?.[nodeId]?.find(item => item.port === portName);
+        if (!artifact?.path || !group) return;
+
+        try {
+            const opened = await window.workflow.openArtifact(artifact.path);
+            if (!opened) return;
+            const existing = this.model.findTabByPath(group.id, opened.path);
+            if (existing) {
+                this.model.selectTab(existing.id);
+            } else if (opened.kind === 'image') {
+                this.model.addTab({ label: opened.name, src: opened.url, path: opened.path }, group.id);
+            } else if (opened.kind === 'json') {
+                this.model.addTab({
+                    label: opened.name,
+                    path: opened.path,
+                    type: 'json-artifact',
+                    content: opened.content,
+                    cleanContent: opened.content
+                }, group.id);
+            }
+            this.view.render();
+        } catch (err) {
+            window.alert(`Could not open ${artifact.port}: ${err.message}`);
+        }
     }
 
     selectTab(id) {

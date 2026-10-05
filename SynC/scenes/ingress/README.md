@@ -6,6 +6,15 @@ Simulates a spacecraft ingress (relative approach trajectory) towards a target s
 
 ## 1. Setup & Coordinate Frames
 
+Ingress/egress motion is sampled by the shared `SynC/pylib/ingress_egress.py`
+`LinearSegment` and `PiecewiseLinearPath` helpers. A segment's normalized
+parameter runs from 0 at its first world-space point to 1 at its second;
+reverse endpoints for egress. Piecewise paths use normalized traveled
+distance across their waypoints. Use `move_object_along_path` to place an
+object at a sample. It can optionally aim supplied cameras at the target;
+leave that option empty for a parallel, rectified stereo rig. Camera creation
+in the POCs is shared through `SynC/pylib/camera.py`.
+
 - **Camera Coordinate Frame**:
   - The stereo camera rig is located at the origin looking along global **$+Y$**, with **$+Z$** pointing up and **$+X$** pointing right.
   - Left Camera: $X = -60\,\text{mm}$
@@ -58,45 +67,64 @@ $$d(Z) = \frac{f_x \cdot B}{Z} = \frac{3200 \times 120}{Z\,\text{(in mm)}} = \fr
 
 ---
 
-## 4. Configuration with `params.json`
+## 4. Shared scene configuration
 
-The simulation is configured via `params.json`:
+[params.json](./params.json) now uses the same `schema_version: 1` scene
+format as the static Cassini stereo-pair builder. Both drivers use
+[scene_config.py](../../pylib/scene_config.py) for loading/validation and
+[scene_setup.py](../../pylib/scene_setup.py) for cameras, model import,
+lighting, and render setup. See the
+[shared schema reference](../../pylib/README.md).
+
+The common sections are `scene`, `camera_rig`, `environment`, and `models`.
+Ingress adds this `trajectory` section:
 
 ```json
 {
-  "name": "ingress",
-  "target_model": "Cassini-Huygens (A).glb",
-  "chase_model": "",
-  "start": 100.0,
-  "stop": 10.0,
-  "increment": 0.5,
-  "sun": {
-    "azimuth_deg": 180.0,
-    "elevation_deg": 30.0,
-    "apparent_diameter_deg": 0.533,
-    "energy": 5.0,
-    "temperature_k": 5778.0
-  },
-  "camera": {
-    "spec": "camera_spec/bfly_pge_13s2m_cs.json",
-    "name": "Blackfly BFLY-PGE-13S2M-CS",
-    "resolution": { "width": 1288, "height": 964 },
-    "lens_focal_length_mm": 12.0,
-    "sensor_size_mm": { "width": 4.83, "height": 3.615 },
-    "baseline_mm": 120.0
-  },
-  "render": {
-    "engine": "BLENDER_EEVEE_NEXT",
-    "samples": 64,
-    "color_mode": "RGB"
-  }
+  "type": "linear",
+  "object": "cassini",
+  "frame": "world",
+  "start_position_m": [0.0, 100.0, 0.0],
+  "end_position_m": [0.0, 10.0, 0.0],
+  "max_step_m": 0.5
 }
 ```
 
-- **Target model**: Any `.glb` located in `SynC/models/`.
-- **Trajectory**: `start`, `stop`, `increment` in meters.
-- **Sun Lighting**: Azimuth is measured from global `+Y` toward `+X`; cameras look along `+Y`, so `180` degrees places the Sun behind the camera. Elevation `30` degrees places it above the target. Workflow edits only affect images when **Re-render in Blender before running** is enabled; otherwise existing frames are reused.
-- **Camera Selection**: Specify the camera directly or point `spec` to a project camera definition (e.g. `camera_spec/bfly_pge_13s2m_cs.json` for narrow FOV or `camera_spec/see3cam_cu30_chl_tc.json` for wide FOV).
+The target model moves while the cameras stay fixed and parallel. The
+trajectory identifies the model by name, not its asset filename. It overrides
+that model's translation at each sample while retaining its orientation.
+`max_step_m` is a maximum spatial step; samples are evenly spaced and include
+both endpoints. A non-divisible segment uses smaller steps. Reverse endpoints
+for egress; equal endpoints produce one stereo pair.
+
+Positions and baseline use meters, lens/sensor sizes use millimeters, and
+Euler rotations use radians. The old flat JSON layout is no longer accepted;
+the existing `--start`, `--stop`, `--increment`, `--target-model`, `--azimuth`,
+and `--elevation` CLI/workflow overrides remain supported. `--start` and
+`--stop` replace the endpoints' world Y coordinates, retaining X/Z;
+`--increment` sets `max_step_m`.
+
+- **Target model**: Set the named model's `file`, relative to `SynC/models/`.
+  Missing files fail explicitly; there is no substitute spacecraft.
+- **Sun**: Configure `environment.sun`. Azimuth is measured from `+Y` toward
+  `+X`; 180 degrees places the Sun behind the cameras. Blender energy is
+  render tuning, not calibrated irradiance. Unsupported temperature controls
+  print a warning and leave the Sun white.
+- **Camera selection**: Define both cameras in `camera_rig.cameras`, or use
+  `--camera-spec` to override both cameras' optics and the render resolution
+  from a project camera profile. Explicit camera poses/baseline are retained.
+- **Render**: `scene.render.samples` and `color_depth` are now applied.
+  Resolution percentage is preserved and accounted for in the disparity log.
+  EEVEE identifier substitution is reported for Blender-version compatibility.
+- **Ground truth**: Existing frame fields are retained. `distanceMeters`
+  means camera-forward depth, not Euclidean range. The theoretical disparity
+  is for the model-root origin; it is not a per-pixel disparity map.
+  The log also records the full effective `scene_params`.
+
+The trajectory can have arbitrary X/Z coordinates, but this stereo driver
+currently requires matching HORIZONTAL cameras looking along world `+Y`
+with `+Z` up and trajectory endpoints in front of them. Orbit and timed-motion
+types are future extensions; unsupported trajectory types fail explicitly.
 
 ---
 
@@ -110,12 +138,22 @@ cd SynC/scenes/ingress
 # Run using settings from params.json
 ./run.sh
 
+# Use an alternate scene configuration (now honored by the builder):
+./run.sh --params /absolute/path/to/scene.json
+
+# Override optics using a camera profile:
+./run.sh --camera-spec camera_spec/see3cam_cu30_chl_tc.json
+
 # Or override specific parameters from CLI:
 ./run.sh --start 50 --stop 10 --increment 1.0 --azimuth 90 --elevation 15
 
 # Dry run (regenerates ground_truth_trajectory.json without rendering):
 ./run.sh --dry-run
 ```
+
+The runner propagates Blender Python failures with a nonzero exit status.
+Dry runs still build/import the scene and save the blend file and trajectory
+log, but do not render images.
 
 ---
 
@@ -125,3 +163,7 @@ In the app, you can test this sequence directly with the workflow pipeline:
 1. Add an **Image Directory** source node pointing to `SynC/scenes/ingress/left`.
 2. Connect it to **Corners** $\rightarrow$ **Simple Stereo** along with a second **Image Directory** source pointing to `SynC/scenes/ingress/right`.
 3. Set FPS to simulate real-time ingress processing.
+
+Workflow range, target, Sun, and camera-profile settings are translated into
+the shared schema by the ingress driver. Enable **Re-render in Blender before
+running** to apply changes; otherwise existing frames are reused.

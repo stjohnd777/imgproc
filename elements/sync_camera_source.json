@@ -67,12 +67,12 @@
     },
     "increment": {
       "type": "number",
-      "label": "Range decrement per frame (m)",
+      "label": "Maximum distance step per pair (m)",
       "default": 0.5,
       "min": 0.05,
       "max": 100.0,
       "step": 0.1,
-      "description": "Distance step between successive frames."
+      "description": "Maximum spatial step between successive stereo pairs. Both endpoints are included; the actual evenly spaced step can be smaller."
     },
     "sunAzimuth": {
       "type": "number",

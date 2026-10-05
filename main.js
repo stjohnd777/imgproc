@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFile, mkdir, readdir, copyFile, writeFile, rename, unlink, stat } from 'node:fs/promises';
+import { readFile, mkdir, readdir, copyFile, writeFile, rename, unlink, stat, lstat, realpath, rm } from 'node:fs/promises';
 import { rmSync, readFileSync, mkdirSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
@@ -370,6 +370,39 @@ async function scanImageDirectory(directory) {
         }
 
         if (entry.isFile() && IMAGE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
+            children.push({
+                type: 'image',
+                name: entry.name,
+                path: entryPath,
+                url: pathToFileURL(entryPath).href
+            });
+        }
+    }
+
+    return children.sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+        return a.name.localeCompare(b.name, undefined, { numeric: true });
+    });
+}
+
+async function scanResultsDirectory(directory, depth = 0) {
+    const entries = await readdir(directory, { withFileTypes: true });
+    const children = [];
+
+    for (const entry of entries) {
+        const entryPath = path.join(directory, entry.name);
+        if (entry.isDirectory()) {
+            const nested = await scanResultsDirectory(entryPath, depth + 1);
+            if (depth < 2 || nested.length > 0) {
+                children.push({
+                    type: 'folder',
+                    name: entry.name,
+                    path: entryPath,
+                    children: nested,
+                    deleteKind: depth === 0 ? 'workflow' : depth === 1 ? 'run' : null
+                });
+            }
+        } else if (entry.isFile() && IMAGE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
             children.push({
                 type: 'image',
                 name: entry.name,
@@ -756,6 +789,20 @@ async function saveWorkflow(senderId, filePath, input) {
     return { filePath: resolved };
 }
 
+async function openWorkflowArtifact(filePath) {
+    const resolved = path.resolve(String(filePath ?? ''));
+    if (!isInAllowedFolder(resolved)) throw new Error('Artifact path is not authorized.');
+    const extension = path.extname(resolved).toLowerCase();
+    if (IMAGE_EXTENSIONS.has(extension)) {
+        return { kind: 'image', path: resolved, url: pathToFileURL(resolved).href, name: path.basename(resolved) };
+    }
+    if (extension === '.json') {
+        const parsed = JSON.parse(await readFile(resolved, 'utf8'));
+        return { kind: 'json', path: resolved, content: `${JSON.stringify(parsed, null, 2)}\n`, name: path.basename(resolved) };
+    }
+    throw new Error(`Unsupported artifact type: ${extension || 'unknown'}`);
+}
+
 function resolveCli(relative) {
     const resolved = path.resolve(CLI_DIR, relative);
     const inside = path.relative(CLI_DIR, resolved);
@@ -836,11 +883,12 @@ async function resolveSourceFrames(steps, elements) {
                         ? '/Applications/Blender.app/Contents/MacOS/Blender'
                         : 'blender';
 
-                    const cliArgs = ['--background', '--python', scriptPath, '--'];
+                    const cliArgs = ['--background', '--python-exit-code', '1', '--python', scriptPath, '--'];
                     if (step.params.start != null) cliArgs.push('--start', String(step.params.start));
                     if (step.params.stop != null) cliArgs.push('--stop', String(step.params.stop));
                     if (step.params.increment != null) cliArgs.push('--increment', String(step.params.increment));
                     if (step.params.target_model) cliArgs.push('--target-model', String(step.params.target_model));
+                    if (step.params.camera) cliArgs.push('--camera-spec', path.join('camera_spec', path.basename(String(step.params.camera))));
                     if (step.params.sunAzimuth != null) cliArgs.push('--azimuth', String(step.params.sunAzimuth));
                     if (step.params.sunElevation != null) cliArgs.push('--elevation', String(step.params.sunElevation));
 
@@ -901,11 +949,33 @@ async function runFrame({ steps, elements, sourceFrames, runDir, frame, onStepSt
                     portMap[pName] = source.repeat ? pFiles[0] : pFiles[(frame - 1) % pFiles.length];
                 }
                 produced.set(step.nodeId, portMap);
-                stepResults.push({ name: step.name, order: step.order, ms: 0, output: Object.values(portMap)[0] });
+                stepResults.push({
+                    nodeId: step.nodeId,
+                    name: step.name,
+                    order: step.order,
+                    ms: 0,
+                    output: Object.values(portMap)[0],
+                    artifacts: step.outputPorts.filter(port => portMap[port.name]).map(port => ({
+                        port: port.name,
+                        type: port.type,
+                        path: portMap[port.name]
+                    }))
+                });
             } else {
                 const file = source.repeat ? source.files[0] : source.files[(frame - 1) % source.files.length];
                 produced.set(step.nodeId, { [source.port]: file });
-                stepResults.push({ name: step.name, order: step.order, ms: 0, output: file });
+                stepResults.push({
+                    nodeId: step.nodeId,
+                    name: step.name,
+                    order: step.order,
+                    ms: 0,
+                    output: file,
+                    artifacts: step.outputPorts.filter(port => port.name === source.port).map(port => ({
+                        port: port.name,
+                        type: port.type,
+                        path: file
+                    }))
+                });
             }
             continue;
         }
@@ -914,8 +984,16 @@ async function runFrame({ steps, elements, sourceFrames, runDir, frame, onStepSt
         if (builtin === 'passthrough') {
             const incoming = Object.values(inputs)[0];
             if (!incoming) throw new Error(`${step.name} has no input to pass on.`);
-            produced.set(step.nodeId, Object.fromEntries(step.outputPorts.map(port => [port.name, incoming])));
-            stepResults.push({ name: step.name, order: step.order, ms: 0, output: incoming });
+            const portMap = Object.fromEntries(step.outputPorts.map(port => [port.name, incoming]));
+            produced.set(step.nodeId, portMap);
+            stepResults.push({
+                nodeId: step.nodeId,
+                name: step.name,
+                order: step.order,
+                ms: 0,
+                output: incoming,
+                artifacts: step.outputPorts.map(port => ({ port: port.name, type: port.type, path: portMap[port.name] }))
+            });
             continue;
         }
 
@@ -943,10 +1021,16 @@ async function runFrame({ steps, elements, sourceFrames, runDir, frame, onStepSt
 
         produced.set(step.nodeId, outputs);
         stepResults.push({
+            nodeId: step.nodeId,
             name: step.name,
             order: step.order,
             ms: Math.round(performance.now() - started),
-            output: Object.values(outputs)[0] ?? null
+            output: Object.values(outputs)[0] ?? null,
+            artifacts: step.outputPorts.filter(port => outputs[port.name]).map(port => ({
+                port: port.name,
+                type: port.type,
+                path: outputs[port.name]
+            }))
         });
     }
 
@@ -1027,7 +1111,38 @@ function stopWorkflow() {
 // Browsing the results folder from app.json. Its images are already allowed, so they open like any other.
 async function listResults() {
     await mkdir(RUNS_DIR, { recursive: true });
-    return { folder: RUNS_DIR, name: path.basename(RESULTS_DIR), tree: await scanImageDirectory(RUNS_DIR) };
+    return { folder: RUNS_DIR, name: path.basename(RESULTS_DIR), tree: await scanResultsDirectory(RUNS_DIR) };
+}
+
+async function deleteResult(targetPath) {
+    await mkdir(RUNS_DIR, { recursive: true });
+    const requestedPath = path.resolve(String(targetPath ?? ''));
+    const relativeRequest = path.relative(RUNS_DIR, requestedPath);
+    const requestParts = relativeRequest.split(path.sep).filter(Boolean);
+    if (!relativeRequest || relativeRequest.startsWith('..') || path.isAbsolute(relativeRequest) || requestParts.length > 2) {
+        throw new Error('Only a workflow or run folder inside results/runs can be deleted.');
+    }
+
+    const info = await lstat(requestedPath);
+    if (!info.isDirectory() || info.isSymbolicLink()) throw new Error('The selected result is not a deletable folder.');
+
+    const runsRoot = await realpath(RUNS_DIR);
+    const resolvedTarget = await realpath(requestedPath);
+    const relativeTarget = path.relative(runsRoot, resolvedTarget);
+    const targetParts = relativeTarget.split(path.sep).filter(Boolean);
+    if (!relativeTarget || relativeTarget.startsWith('..') || path.isAbsolute(relativeTarget) || targetParts.length < 1 || targetParts.length > 2) {
+        throw new Error('The selected result resolves outside the runs folder.');
+    }
+
+    if (activeRun) {
+        const activeRelative = path.relative(resolvedTarget, path.resolve(activeRun.runDir));
+        if (activeRelative === '' || (!activeRelative.startsWith('..') && !path.isAbsolute(activeRelative))) {
+            throw new Error('Cannot delete a workflow or run while it is running.');
+        }
+    }
+
+    await rm(resolvedTarget, { recursive: true, force: false });
+    return await listResults();
 }
 
 // One JSON file per spec. A file that doesn't parse is returned with an error instead of hiding the rest.
@@ -1160,7 +1275,7 @@ async function openSurfaceWindow(parent, imagePath) {
 
 function createWindow () {
     const window = new BrowserWindow({
-        title: 'Hello Electron',
+        title: 'Orbital Eyes',
         width: 1024,
         height: 624,
         webPreferences: {
@@ -1183,6 +1298,7 @@ app.whenReady().then(() => {
     ipcMain.handle('explorer:chooseFile', (event, options) =>
         chooseImageFile(BrowserWindow.fromWebContents(event.sender), options));
     ipcMain.handle('results:list', () => listResults());
+    ipcMain.handle('results:delete', (_event, targetPath) => deleteResult(targetPath));
     ipcMain.handle('specs:list', (_event, kind) => listSpecs(kind));
     ipcMain.handle('specs:read', (_event, kind, file) => readSpec(kind, file));
     ipcMain.handle('specs:save', (_event, kind, file, content) => saveSpec(kind, file, content));
@@ -1193,6 +1309,7 @@ app.whenReady().then(() => {
     ipcMain.handle('workflow:save', (event, filePath, document) => saveWorkflow(event.sender.id, filePath, document));
     ipcMain.handle('workflow:saveAs', (event, document) =>
         saveWorkflowAs(BrowserWindow.fromWebContents(event.sender), event.sender.id, document));
+    ipcMain.handle('workflow:openArtifact', (_event, filePath) => openWorkflowArtifact(filePath));
     ipcMain.handle('surface:open', (event, imagePath) =>
         openSurfaceWindow(BrowserWindow.fromWebContents(event.sender), imagePath));
     ipcMain.handle('surface:payload', event => surfacePayloads.get(event.sender.id) ?? null);

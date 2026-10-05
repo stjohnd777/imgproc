@@ -1,35 +1,104 @@
 {
-  "name": "ingress",
-  "target_model": "Cassini-Huygens (A).glb",
-  "chase_model": "",
-  "start": 100.0,
-  "stop": 10.0,
-  "increment": 0.5,
-  "sun": {
-    "azimuth_deg": 180.0,
-    "elevation_deg": 30.0,
-    "apparent_diameter_deg": 0.533,
-    "energy": 5.0,
-    "temperature_k": 5778.0
+  "schema_version": 1,
+  "scene": {
+    "name": "ingress",
+    "units": "meters",
+    "world_frame": {
+      "name": "world",
+      "handedness": "right_handed",
+      "axes": {"x": "right", "y": "forward", "z": "up"}
+    },
+    "render": {
+      "engine": "BLENDER_EEVEE_NEXT",
+      "resolution_px": [1288, 964],
+      "resolution_percentage": 100,
+      "image_format": "PNG",
+      "color_mode": "RGB",
+      "color_depth": "8",
+      "samples": 64
+    }
   },
-  "camera": {
-    "spec": "camera_spec/bfly_pge_13s2m_cs.json",
+  "camera_rig": {
     "name": "Blackfly BFLY-PGE-13S2M-CS",
-    "resolution": {
-      "width": 1288,
-      "height": 964
-    },
-    "lens_focal_length_mm": 12.0,
-    "sensor_size_mm": {
-      "width": 4.83,
-      "height": 3.615
-    },
-    "baseline_mm": 120.0
+    "baseline_m": 0.12,
+    "baseline_axis": "+X",
+    "parallel_optical_axes": true,
+    "cameras": [
+      {
+        "name": "Camera_Left",
+        "focal_length_mm": 12.0,
+        "sensor_width_mm": 4.83,
+        "sensor_height_mm": 3.615,
+        "sensor_fit": "HORIZONTAL",
+        "clip_start_m": 0.1,
+        "clip_end_m": 10000.0,
+        "pose": {
+          "frame": "world",
+          "translation_m": [-0.06, 0.0, 0.0],
+          "rotation_euler_rad": [1.5707963267948966, 0.0, 0.0],
+          "rotation_order": "XYZ"
+        }
+      },
+      {
+        "name": "Camera_Right",
+        "focal_length_mm": 12.0,
+        "sensor_width_mm": 4.83,
+        "sensor_height_mm": 3.615,
+        "sensor_fit": "HORIZONTAL",
+        "clip_start_m": 0.1,
+        "clip_end_m": 10000.0,
+        "pose": {
+          "frame": "world",
+          "translation_m": [0.06, 0.0, 0.0],
+          "rotation_euler_rad": [1.5707963267948966, 0.0, 0.0],
+          "rotation_order": "XYZ"
+        }
+      }
+    ]
   },
-  "render": {
-    "engine": "BLENDER_EEVEE_NEXT",
-    "samples": 64,
-    "color_mode": "RGB",
-    "color_depth": "8"
+  "environment": {
+    "background": {"color_rgb": [0.0, 0.0, 0.0], "strength": 0.0},
+    "sun": {
+      "enabled": true,
+      "direction": {
+        "representation": "azimuth_elevation",
+        "frame": "world",
+        "azimuth_deg": 180.0,
+        "elevation_deg": 30.0,
+        "azimuth_zero_direction": "+Y",
+        "azimuth_increases_toward": "+X",
+        "elevation_reference_plane": "XY",
+        "vector_points": "scene_toward_sun"
+      },
+      "apparent_angular_diameter_deg": 0.533,
+      "blender_energy": 5.0,
+      "color_temperature_k": 5778.0
+    },
+    "additional_lights": [],
+    "earth": {"visible": false, "illumination": {"enabled": false}},
+    "moon": {"visible": false, "illumination": {"enabled": false}},
+    "stars": {"visible": false}
+  },
+  "models": [
+    {
+      "name": "cassini",
+      "file": "Cassini-Huygens (A).glb",
+      "pose": {
+        "frame": "world",
+        "translation_m": [0.0, 100.0, 0.0],
+        "rotation_euler_rad": [
+          0.2617993877991494, -0.5235987755982988, 0.3490658503988659
+        ],
+        "rotation_order": "XYZ"
+      }
+    }
+  ],
+  "trajectory": {
+    "type": "linear",
+    "object": "cassini",
+    "frame": "world",
+    "start_position_m": [0.0, 100.0, 0.0],
+    "end_position_m": [0.0, 10.0, 0.0],
+    "max_step_m": 0.5
   }
 }

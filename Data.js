@@ -412,6 +412,7 @@ export class ExplorerModel {
     constructor() {
         this.folder = null;   // { folder, name, tree: [...] }
         this.collapsedFolders = new Set();
+        this.selectedPath = null;
     }
 
     setFolder(folder) {

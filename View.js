@@ -19,6 +19,13 @@ const ICON_SHAPES = {
         ['circle', { cx: 15.5, cy: 9.5, r: 1.6, fill: 'currentColor' }],
         ['path', { d: 'M5.5 17l4-4.5 3 3 2-2 4 3.5z', fill: 'currentColor' }]
     ],
+    eye: [
+        ['path', { d: 'M2.5 12s3.2-6 9.5-6 9.5 6 9.5 6-3.2 6-9.5 6-9.5-6-9.5-6z', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8 }],
+        ['circle', { cx: 12, cy: 12, r: 2.7, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8 }]
+    ],
+    file: [
+        ['path', { d: 'M6 3.5h8l4 4v13H6zM14 3.5v4h4M9 12h6M9 15.5h6', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.7, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }]
+    ],
     camera: [
         ['path', { d: 'M4 8.5A1.5 1.5 0 0 1 5.5 7h2.3l1.4-2h5.6l1.4 2h2.3A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8 }],
         ['circle', { cx: 12, cy: 13, r: 3.2, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8 }]
@@ -162,6 +169,9 @@ export class View {
         this.activityButtons = activityButtons;   // { explorer: <button>, cameras: <button>, ... }
         this.toolbarActions = toolbarActions;
         this.controller = null;
+        this.resultFolderMenu = null;
+        this.resultFolderMenuDismiss = null;
+        this.resultFolderMenuKeydown = null;
 
         for (const [viewName, button] of Object.entries(activityButtons)) {
             button.addEventListener('click', () => this.controller.toggleSideBarView(viewName));
@@ -183,6 +193,7 @@ export class View {
     }
 
     render() {
+        this.closeResultFolderMenu();
         this.renderSideBar();
 
         this.editorArea.innerHTML = '';
@@ -371,10 +382,10 @@ export class View {
 
         const activePath = this.model.getActiveTab()?.path;
         this.sideBar.appendChild(this.buildImageTree(folder.tree, activePath, this.results,
-            path => this.controller.toggleResultsFolder(path)));
+            path => this.controller.toggleResultsFolder(path), true));
     }
 
-    buildImageTree(nodes, activePath, browser = this.explorer, onToggleFolder = path => this.controller.toggleExplorerFolder(path)) {
+    buildImageTree(nodes, activePath, browser = this.explorer, onToggleFolder = path => this.controller.toggleExplorerFolder(path), resultsTree = false) {
         const list = document.createElement('ul');
         list.className = 'file-tree';
 
@@ -382,7 +393,10 @@ export class View {
             if (node.type === 'folder') {
                 const item = document.createElement('li');
                 const folderRow = document.createElement('div');
-                folderRow.className = 'folder-row';
+                const canDelete = resultsTree && Boolean(node.deleteKind);
+                folderRow.className = `folder-row${resultsTree ? ' result-folder-row' : ''}${browser.selectedPath === node.path ? ' selected' : ''}`;
+                folderRow.tabIndex = canDelete ? 0 : -1;
+                if (resultsTree) folderRow.setAttribute('aria-selected', String(browser.selectedPath === node.path));
                 const expanded = browser.isExpanded(node.path);
                 const chevron = document.createElement('span');
                 chevron.className = 'folder-chevron';
@@ -394,8 +408,21 @@ export class View {
                 folderRow.appendChild(label);
                 folderRow.title = node.path;
                 folderRow.addEventListener('click', () => onToggleFolder(node.path));
+                if (canDelete) {
+                    folderRow.addEventListener('contextmenu', event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        this.showResultFolderMenu(event, node);
+                    });
+                    folderRow.addEventListener('keydown', event => {
+                        if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        this.controller.deleteResult(node.path, node.deleteKind);
+                    });
+                }
                 item.appendChild(folderRow);
-                if (expanded) item.appendChild(this.buildImageTree(node.children, activePath, browser, onToggleFolder));
+                if (expanded) item.appendChild(this.buildImageTree(node.children, activePath, browser, onToggleFolder, resultsTree));
                 list.appendChild(item);
                 return;
             }
@@ -412,6 +439,46 @@ export class View {
         });
 
         return list;
+    }
+
+    showResultFolderMenu(event, node) {
+        this.closeResultFolderMenu();
+        const menu = document.createElement('div');
+        menu.className = 'results-context-menu';
+        menu.setAttribute('role', 'menu');
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.textContent = node.deleteKind === 'workflow' ? 'Delete Workflow' : 'Delete Run';
+        remove.setAttribute('role', 'menuitem');
+        remove.addEventListener('click', () => {
+            this.closeResultFolderMenu();
+            this.controller.deleteResult(node.path, node.deleteKind);
+        });
+        menu.appendChild(remove);
+        menu.style.left = `${Math.max(4, Math.min(event.clientX, window.innerWidth - 164))}px`;
+        menu.style.top = `${Math.max(4, Math.min(event.clientY, window.innerHeight - 44))}px`;
+        document.body.appendChild(menu);
+
+        this.resultFolderMenu = menu;
+        this.resultFolderMenuDismiss = pointerEvent => {
+            if (!menu.contains(pointerEvent.target)) this.closeResultFolderMenu();
+        };
+        this.resultFolderMenuKeydown = keyEvent => {
+            if (keyEvent.key === 'Escape') this.closeResultFolderMenu();
+        };
+        window.addEventListener('pointerdown', this.resultFolderMenuDismiss, true);
+        window.addEventListener('keydown', this.resultFolderMenuKeydown, true);
+        remove.focus();
+    }
+
+    closeResultFolderMenu() {
+        if (!this.resultFolderMenu) return;
+        this.resultFolderMenu.remove();
+        window.removeEventListener('pointerdown', this.resultFolderMenuDismiss, true);
+        window.removeEventListener('keydown', this.resultFolderMenuKeydown, true);
+        this.resultFolderMenu = null;
+        this.resultFolderMenuDismiss = null;
+        this.resultFolderMenuKeydown = null;
     }
 
     renderSpecs(kind) {
@@ -812,6 +879,11 @@ export class View {
             return;
         }
 
+        if (activeTab.type === 'json-artifact') {
+            this.renderJsonArtifact(container, activeTab);
+            return;
+        }
+
         container.appendChild(this.buildToolbar(activeTab));
         container.appendChild(this.buildZoomBar(activeTab));
 
@@ -1029,6 +1101,38 @@ export class View {
         });
 
         updateStatus();
+    }
+
+    renderJsonArtifact(container, tab) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'json-editor-wrapper';
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'json-editor-toolbar';
+        const title = document.createElement('span');
+        title.className = 'json-editor-status';
+        title.textContent = 'JSON artifact · read only';
+        toolbar.appendChild(title);
+        wrapper.appendChild(toolbar);
+
+        const body = document.createElement('div');
+        body.className = 'json-editor-body';
+        const content = document.createElement('textarea');
+        content.className = 'json-editor-textarea';
+        content.value = tab.content ?? '';
+        content.readOnly = true;
+        content.spellcheck = false;
+        body.appendChild(content);
+        wrapper.appendChild(body);
+
+        const status = document.createElement('div');
+        status.className = 'status-bar json-editor-statusbar';
+        const path = document.createElement('span');
+        path.textContent = tab.path ?? tab.label;
+        status.appendChild(path);
+        wrapper.appendChild(status);
+
+        container.appendChild(wrapper);
     }
 
     renderWorkflowCanvas(container, tab) {
@@ -1272,6 +1376,25 @@ export class View {
         const title = document.createElement('span');
         title.textContent = node.name;
         header.appendChild(title);
+
+        for (const artifact of tab.latestArtifacts?.[node.id] ?? []) {
+            const isImage = artifact.type === 'image' || artifact.type === 'disparity';
+            const isJson = ['text', 'keypoints', 'matches'].includes(artifact.type);
+            if (!isImage && !isJson) continue;
+
+            const artifactBtn = document.createElement('button');
+            artifactBtn.className = 'workflow-node-artifact';
+            artifactBtn.type = 'button';
+            artifactBtn.title = `Open ${isImage ? 'image' : 'JSON'} artifact: ${artifact.port}`;
+            artifactBtn.setAttribute('aria-label', artifactBtn.title);
+            artifactBtn.appendChild(createIcon(isImage ? 'eye' : 'file'));
+            artifactBtn.addEventListener('pointerdown', event => event.stopPropagation());
+            artifactBtn.addEventListener('click', event => {
+                event.stopPropagation();
+                this.controller.openWorkflowArtifact(tab.id, node.id, artifact.port);
+            });
+            header.appendChild(artifactBtn);
+        }
 
         const removeBtn = document.createElement('button');
         removeBtn.className = 'workflow-node-remove';

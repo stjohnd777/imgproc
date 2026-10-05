@@ -13,5 +13,6 @@ if [ ! -f "$BLENDER" ]; then
     fi
 fi
 
-echo "Running build_hello_world.py with Blender from $DIR..."
-"$BLENDER" --background --python "$DIR/build_hello_world.py" "$@"
+echo "Running cassini-stereo-pair.py with Blender from $DIR..."
+"$BLENDER" --background --python-exit-code 1 \
+    --python "$DIR/cassini-stereo-pair.py" -- "$@"

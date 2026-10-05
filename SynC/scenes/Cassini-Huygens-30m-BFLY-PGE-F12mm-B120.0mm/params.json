@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "scene": {
+    "name": "Cassini stereo scene",
+    "units": "meters",
+    "world_frame": {
+      "name": "world",
+      "handedness": "right_handed",
+      "axes": {
+        "x": "right",
+        "y": "forward",
+        "z": "up"
+      }
+    },
+    "render": {
+      "engine": "BLENDER_EEVEE_NEXT",
+      "resolution_px": [
+        1288,
+        964
+      ],
+      "resolution_percentage": 100,
+      "image_format": "PNG",
+      "color_mode": "RGB"
+    }
+  },
+  "camera_rig": {
+    "name": "Blackfly BFLY-PGE-13S2M-CS stereo rig",
+    "baseline_m": 0.12,
+    "baseline_axis": "+X",
+    "parallel_optical_axes": true,
+    "cameras": [
+      {
+        "name": "Blackfly_Left",
+        "focal_length_mm": 12.0,
+        "sensor_width_mm": 4.83,
+        "sensor_height_mm": 3.615,
+        "sensor_fit": "HORIZONTAL",
+        "pose": {
+          "frame": "world",
+          "translation_m": [
+            -0.06,
+            0.0,
+            0.0
+          ],
+          "rotation_euler_rad": [
+            1.5707963267948966,
+            0.0,
+            0.0
+          ],
+          "rotation_order": "XYZ"
+        }
+      },
+      {
+        "name": "Blackfly_Right",
+        "focal_length_mm": 12.0,
+        "sensor_width_mm": 4.83,
+        "sensor_height_mm": 3.615,
+        "sensor_fit": "HORIZONTAL",
+        "pose": {
+          "frame": "world",
+          "translation_m": [
+            0.06,
+            0.0,
+            0.0
+          ],
+          "rotation_euler_rad": [
+            1.5707963267948966,
+            0.0,
+            0.0
+          ],
+          "rotation_order": "XYZ"
+        }
+      }
+    ]
+  },
+  "environment": {
+    "background": {
+      "color_rgb": [
+        0.002,
+        0.002,
+        0.005
+      ],
+      "strength": 1.0
+    },
+    "sun": {
+      "enabled": true,
+      "direction": {
+        "representation": "azimuth_elevation",
+        "frame": "world",
+        "azimuth_deg": 180.0,
+        "elevation_deg": 30.0,
+        "azimuth_zero_direction": "+Y",
+        "azimuth_increases_toward": "+X",
+        "elevation_reference_plane": "XY",
+        "vector_points": "scene_toward_sun"
+      },
+      "apparent_angular_diameter_deg": 0.533,
+      "blender_energy": 4.5,
+      "color_temperature_k": 5778
+    },
+    "additional_lights": [
+      {
+        "name": "Fill_Light",
+        "enabled": true,
+        "type": "SUN",
+        "blender_energy": 0.4,
+        "color_rgb": [
+          0.6,
+          0.75,
+          1.0
+        ],
+        "rotation_euler_rad": [
+          1.0471975511965976,
+          -2.0943951023931953,
+          0.0
+        ]
+      }
+    ],
+    "earth": {
+      "visible": false,
+      "illumination": {
+        "enabled": false,
+        "model": "area_light_approximation"
+      }
+    },
+    "moon": {
+      "visible": false,
+      "illumination": {
+        "enabled": false,
+        "model": "area_light_approximation"
+      }
+    },
+    "stars": {
+      "visible": false,
+      "catalog": null,
+      "exposure_model": "sunlit_scene"
+    }
+  },
+  "models": [
+    {
+      "name": "cassini",
+      "file": "Cassini-Huygens (A).glb",
+      "pose": {
+        "frame": "world",
+        "translation_m": [
+          0.0,
+          30.0,
+          0.0
+        ],
+        "rotation_euler_rad": [
+          0.3490658503988659,
+          -0.6108652381980153,
+          0.2617993877991494
+        ],
+        "rotation_order": "XYZ"
+      }
+    }
+  ]
+}

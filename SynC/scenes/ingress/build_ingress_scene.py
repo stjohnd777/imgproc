@@ -1,332 +1,346 @@
-"""
-Dynamic Ingress Simulation Scene Builder for SynC
+"""Render a stereo trajectory using the shared SynC scene schema."""
 
-Reads parameters from params.json (or CLI flags) to render a stereo ingress sequence.
-Features:
-- Parameterized target model, approach distance (start/stop/increment), and sun angle (azimuth/elevation).
-- Camera rig configurable directly or via camera_spec/ JSON (e.g. Blackfly narrow vs See3CAM wide).
-- Trajectory logger recording ground truth distance, coordinates, and theoretical disparity for every frame.
-- Structured output under left/ and right/ folders.
-"""
+import argparse
+import copy
+import json
+import math
+from pathlib import Path
+import sys
 
 import bpy
-import os
-import sys
-import math
-import json
-import argparse
-import mathutils
+from mathutils import Vector
 
-def load_camera_spec(spec_rel_path, project_root):
-    spec_abs = os.path.join(project_root, spec_rel_path)
-    if not os.path.exists(spec_abs):
-        return None
-    try:
-        with open(spec_abs, "r") as f:
-            data = json.load(f)
-        res = data.get("sensor", {}).get("resolution", {"width": 1288, "height": 964})
-        active_area = data.get("sensor", {}).get("activeAreaMm", {"width": 4.83, "height": 3.615})
-        lens_fl = data.get("lens", {}).get("focalLengthMm", 12.0)
-        return {
-            "name": data.get("name", "Unknown"),
-            "resolution": res,
-            "sensor_size_mm": active_area,
-            "lens_focal_length_mm": lens_fl
-        }
-    except Exception as e:
-        print(f"Warning: could not load camera spec {spec_abs}: {e}")
-        return None
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parents[2]
+sys.path.insert(0, str(PROJECT_ROOT / "SynC" / "pylib"))
+from ingress_egress import LinearSegment, move_object_along_path  # noqa: E402
+from scene_config import (  # noqa: E402
+    apply_camera_spec,
+    finite_number,
+    load_scene_params,
+    validate_scene_params,
+)
+from scene_setup import build_scene, render_camera  # noqa: E402
 
-def sun_vector_from_angles(azimuth_deg, elevation_deg):
-    """
-    Computes unit sun illumination vector from azimuth (deg from +Y toward +X)
-    and elevation (deg above XY plane).
-    The vector points from the Sun toward the scene.
-    """
-    az_rad = math.radians(azimuth_deg)
-    el_rad = math.radians(elevation_deg)
-    sun_x = math.sin(az_rad) * math.cos(el_rad)
-    sun_y = math.cos(az_rad) * math.cos(el_rad)
-    sun_z = math.sin(el_rad)
-    return mathutils.Vector((-sun_x, -sun_y, -sun_z)).normalized()
 
-def setup_ingress_scene(params, project_root, script_dir):
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    scene = bpy.context.scene
-
-    # 1. Render engine and image format
-    render_cfg = params.get("render", {})
-    engine_pref = render_cfg.get("engine", "BLENDER_EEVEE_NEXT")
-    available_engines = [e.identifier for e in bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items]
-    if engine_pref not in available_engines:
-        engine_pref = 'BLENDER_EEVEE' if 'BLENDER_EEVEE' in available_engines else 'CYCLES'
-    scene.render.engine = engine_pref
-
-    cam_cfg = params.get("camera", {})
-    res_w = cam_cfg.get("resolution", {}).get("width", 1288)
-    res_h = cam_cfg.get("resolution", {}).get("height", 964)
-    scene.render.resolution_x = res_w
-    scene.render.resolution_y = res_h
-    scene.render.resolution_percentage = 100
-    scene.render.image_settings.file_format = 'PNG'
-    scene.render.image_settings.color_mode = render_cfg.get("color_mode", "RGB")
-
-    # Pure space black background
-    world = bpy.data.worlds.new("SpaceWorld")
-    scene.world = world
-    world.use_nodes = True
-    bg_node = world.node_tree.nodes.get("Background")
-    if bg_node:
-        bg_node.inputs['Color'].default_value = (0.0, 0.0, 0.0, 1.0)
-        bg_node.inputs['Strength'].default_value = 0.0
-
-    # 2. Solar light (AM0 Sun) with parameterized angle and spectrum
-    sun_cfg = params.get("sun", {})
-    sun_data = bpy.data.lights.new(name="Sun_Light", type='SUN')
-    sun_data.energy = float(sun_cfg.get("energy", 5.0))
-    sun_angle_deg = float(sun_cfg.get("apparent_diameter_deg", 0.533))
-    sun_data.angle = math.radians(sun_angle_deg)
-    if hasattr(sun_data, "use_temperature"):
-        sun_data.use_temperature = True
-        sun_data.temperature = float(sun_cfg.get("temperature_k", 5778.0))
-
-    sun_obj = bpy.data.objects.new("Sun_Light", sun_data)
-    az_deg = float(sun_cfg.get("azimuth_deg", 180.0))
-    el_deg = float(sun_cfg.get("elevation_deg", 30.0))
-    sun_ray_dir = sun_vector_from_angles(az_deg, el_deg)
-    sun_obj.rotation_euler = sun_ray_dir.to_track_quat('-Z', 'Y').to_euler()
-    bpy.context.collection.objects.link(sun_obj)
-    print(f"Sun configured: Azimuth {az_deg} deg, Elevation {el_deg} deg, AngDiam {sun_angle_deg} deg")
-
-    # 3. Load Target Satellite Model
-    target_model_name = params.get("target_model", "Cassini-Huygens (A).glb")
-    model_path = os.path.join(project_root, "SynC", "models", target_model_name)
-    if not os.path.exists(model_path):
-        fallback = os.path.join(project_root, "SynC", "models", "Cassini-Huygens (A).glb")
-        if os.path.exists(fallback):
-            model_path = fallback
-        else:
-            model_path = os.path.join(project_root, "SynC", "models", "NEAR Shoemaker.glb")
-
-    print(f"Loading spacecraft model: {model_path}")
-    bpy.ops.import_scene.gltf(filepath=model_path)
-
-    imported_objects = [o for o in bpy.context.scene.objects if o.type == 'MESH']
-    min_c = [float('inf')] * 3
-    max_c = [float('-inf')] * 3
-    for obj in imported_objects:
-        for corner in obj.bound_box:
-            world_corner = obj.matrix_world @ mathutils.Vector(corner)
-            for i in range(3):
-                min_c[i] = min(min_c[i], world_corner[i])
-                max_c[i] = max(max_c[i], world_corner[i])
-
-    center_x = (min_c[0] + max_c[0]) / 2.0
-    center_y = (min_c[1] + max_c[1]) / 2.0
-    center_z = (min_c[2] + max_c[2]) / 2.0
-    dims = [max_c[i] - min_c[i] for i in range(3)]
-    print(f"Spacecraft dimensions: {dims[0]:.2f}m x {dims[1]:.2f}m x {dims[2]:.2f}m")
-
-    target_root = bpy.data.objects.new("Target_Satellite", None)
-    bpy.context.collection.objects.link(target_root)
-    start_distance = float(params.get("start", 100.0))
-    target_root.location = (0.0, start_distance, 0.0)
-    target_root.rotation_euler = (math.radians(15), math.radians(-30), math.radians(20))
-
-    for obj in imported_objects:
-        if obj.parent is None:
-            obj.location.x -= center_x
-            obj.location.y -= center_y
-            obj.location.z -= center_z
-            obj.parent = target_root
-
-    # 4. Calibrated Stereo Rig
-    baseline_mm = float(cam_cfg.get("baseline_mm", 120.0))
-    baseline_m = baseline_mm / 1000.0
-    half_baseline = baseline_m / 2.0
-    sensor_w = float(cam_cfg.get("sensor_size_mm", {}).get("width", 4.83))
-    sensor_h = float(cam_cfg.get("sensor_size_mm", {}).get("height", 3.615))
-    focal_len = float(cam_cfg.get("lens_focal_length_mm", 12.0))
-
-    def make_camera(name, x_offset):
-        c_data = bpy.data.cameras.new(name=name)
-        c_data.sensor_fit = 'HORIZONTAL'
-        c_data.sensor_width = sensor_w
-        c_data.sensor_height = sensor_h
-        c_data.lens = focal_len
-        c_data.clip_start = 0.1
-        c_data.clip_end = 10000.0
-
-        c_obj = bpy.data.objects.new(name=name, object_data=c_data)
-        c_obj.location = (x_offset, 0.0, 0.0)
-        c_obj.rotation_euler = (math.radians(90), 0.0, 0.0)
-        bpy.context.collection.objects.link(c_obj)
-        return c_obj
-
-    cam_left = make_camera("Camera_Left", -half_baseline)
-    cam_right = make_camera("Camera_Right", half_baseline)
-
-    return scene, target_root, cam_left, cam_right
-
-def run_ingress(params_override=None, dry_run=False):
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(script_dir, "..", "..", ".."))
-
-    # Load defaults from params.json if present
-    params_path = os.path.join(script_dir, "params.json")
-    params = {}
-    if os.path.exists(params_path):
-        try:
-            with open(params_path, "r") as f:
-                params = json.load(f)
-            print(f"Loaded configuration from: {params_path}")
-        except Exception as e:
-            print(f"Warning: could not parse {params_path}: {e}")
-
-    # Check if a camera spec was referenced
-    cam_spec_ref = params.get("camera", {}).get("spec")
-    if cam_spec_ref:
-        loaded_spec = load_camera_spec(cam_spec_ref, project_root)
-        if loaded_spec:
-            params.setdefault("camera", {})
-            for k, v in loaded_spec.items():
-                if k not in params["camera"] or params["camera"][k] is None:
-                    params["camera"][k] = v
-
-    # Apply any programmatic overrides
-    if params_override:
-        for k, v in params_override.items():
-            if v is not None:
-                if isinstance(v, dict) and isinstance(params.get(k), dict):
-                    params[k].update(v)
+def apply_ingress_overrides(params, overrides):
+    """Translate the existing CLI/programmatic overrides into schema v1."""
+    params = copy.deepcopy(params)
+    trajectory = params["trajectory"]
+    target = next(
+        model
+        for model in params["models"]
+        if model["name"] == trajectory["object"]
+    )
+    for key, value in overrides.items():
+        if value is None:
+            continue
+        if key in {"start", "stop"}:
+            finite_number(value, key, positive=True)
+            endpoint = (
+                "start_position_m" if key == "start" else "end_position_m"
+            )
+            trajectory[endpoint][1] = value
+        elif key == "increment":
+            trajectory["max_step_m"] = value
+        elif key == "target_model":
+            target["file"] = value
+        elif key == "name":
+            params["scene"]["name"] = value
+        elif key == "sun":
+            sun = params["environment"]["sun"]
+            for field, setting in value.items():
+                if field in {"azimuth_deg", "elevation_deg"}:
+                    sun["direction"][field] = setting
+                elif field in {
+                    "energy",
+                    "temperature_k",
+                    "apparent_diameter_deg",
+                }:
+                    mapped = {
+                        "energy": "blender_energy",
+                        "temperature_k": "color_temperature_k",
+                        "apparent_diameter_deg": (
+                            "apparent_angular_diameter_deg"
+                        ),
+                    }
+                    sun[mapped[field]] = setting
                 else:
-                    params[k] = v
+                    raise ValueError(f"Unsupported Sun override: {field}")
+        elif key == "camera":
+            _apply_camera_overrides(params, value)
+        elif key == "render":
+            params["scene"]["render"].update(value)
+        else:
+            raise ValueError(f"Unsupported ingress override: {key}")
+    return validate_scene_params(params)
 
-    start_m = float(params.get("start", 100.0))
-    stop_m = float(params.get("stop", 10.0))
-    increment_m = float(params.get("increment", 0.5))
 
-    left_dir = os.path.join(script_dir, "left")
-    right_dir = os.path.join(script_dir, "right")
-    os.makedirs(left_dir, exist_ok=True)
-    os.makedirs(right_dir, exist_ok=True)
+def _apply_camera_overrides(params, overrides):
+    rig = params["camera_rig"]
+    for field, value in overrides.items():
+        if field == "spec":
+            raise ValueError("Use camera_spec or --camera-spec for profiles.")
+        if field == "name":
+            rig["name"] = value
+        elif field == "resolution":
+            params["scene"]["render"]["resolution_px"] = [
+                value["width"],
+                value["height"],
+            ]
+        elif field == "baseline_mm":
+            finite_number(value, "baseline_mm", positive=True)
+            rig["baseline_m"] = value / 1000
+            center = (
+                sum(
+                    camera["pose"]["translation_m"][0]
+                    for camera in rig["cameras"]
+                )
+                / 2
+            )
+            for camera, sign in zip(rig["cameras"], (-1, 1)):
+                camera["pose"]["translation_m"][0] = (
+                    center + sign * rig["baseline_m"] / 2
+                )
+        elif field in {"lens_focal_length_mm", "sensor_size_mm"}:
+            for camera in rig["cameras"]:
+                if field == "lens_focal_length_mm":
+                    camera["focal_length_mm"] = value
+                else:
+                    camera["sensor_width_mm"] = value["width"]
+                    camera["sensor_height_mm"] = value["height"]
+        else:
+            raise ValueError(f"Unsupported camera override: {field}")
 
-    scene, target, cam_left, cam_right = setup_ingress_scene(params, project_root, script_dir)
 
-    blend_path = os.path.join(script_dir, "ingress_stereo.blend")
-    bpy.ops.wm.save_as_mainfile(filepath=blend_path)
-    print(f"Saved ingress blend file to: {blend_path}")
+def validate_stereo_trajectory(params):
+    """Enforce the rectified rig assumptions behind the disparity log."""
+    trajectory = params.get("trajectory")
+    if trajectory is None:
+        raise ValueError("The ingress driver requires a trajectory section.")
+    rig = params["camera_rig"]
+    cameras = rig["cameras"]
+    if (
+        len(cameras) != 2
+        or not rig.get("parallel_optical_axes")
+        or "baseline_m" not in rig
+    ):
+        raise ValueError("Ingress requires a parallel two-camera stereo rig.")
+    left, right = cameras
+    for camera in cameras:
+        pose = camera["pose"]
+        if (
+            camera["sensor_fit"] != "HORIZONTAL"
+            or pose.get("rotation_order", "XYZ") != "XYZ"
+            or any(
+                abs(actual - expected) > 1e-9
+                for actual, expected in zip(
+                    pose["rotation_euler_rad"], (math.pi / 2, 0, 0)
+                )
+            )
+        ):
+            raise ValueError(
+                "Ingress disparity logging requires HORIZONTAL cameras "
+                "looking along world +Y with +Z up."
+            )
+    for field in ("focal_length_mm", "sensor_width_mm", "sensor_height_mm"):
+        if left[field] != right[field]:
+            raise ValueError(
+                "Ingress stereo cameras must have matching optics."
+            )
+    camera_y = left["pose"]["translation_m"][1]
+    for endpoint in ("start_position_m", "end_position_m"):
+        if trajectory[endpoint][1] <= camera_y:
+            raise ValueError(
+                "Trajectory endpoints must be in front of cameras."
+            )
 
-    # Calculate distance steps
-    distances = []
-    d = start_m
-    while d >= stop_m - 1e-5:
-        distances.append(round(d, 3))
-        d -= increment_m
 
-    total_frames = len(distances)
-    print(f"Ingress Trajectory: {start_m:.1f}m -> {stop_m:.1f}m (step {increment_m:.2f}m) = {total_frames} frames ({total_frames*2} images)")
+def run_ingress(
+    params_override=None,
+    dry_run=False,
+    *,
+    params_path=None,
+    output_dir=None,
+    camera_spec=None,
+):
+    params = load_scene_params(params_path or SCRIPT_DIR / "params.json")
+    if "trajectory" not in params:
+        raise ValueError("The ingress driver requires a trajectory section.")
+    if camera_spec:
+        spec_path = Path(camera_spec)
+        if not spec_path.is_absolute():
+            spec_path = PROJECT_ROOT / spec_path
+        params = apply_camera_spec(params, spec_path)
+    params = apply_ingress_overrides(params, params_override or {})
+    validate_stereo_trajectory(params)
 
-    cam_cfg = params.get("camera", {})
-    res_w = cam_cfg.get("resolution", {}).get("width", 1288)
-    res_h = cam_cfg.get("resolution", {}).get("height", 964)
-    sensor_w_mm = cam_cfg.get("sensor_size_mm", {}).get("width", 4.83)
-    focal_len_mm = cam_cfg.get("lens_focal_length_mm", 12.0)
-    baseline_mm = cam_cfg.get("baseline_mm", 120.0)
+    motion = params["trajectory"]
+    start = Vector(motion["start_position_m"])
+    end = Vector(motion["end_position_m"])
+    path = LinearSegment(start, end)
+    length = (end - start).length
+    total_frames = max(1, math.ceil(length / motion["max_step_m"]) + 1)
+    step = length / (total_frames - 1) if total_frames > 1 else 0.0
 
-    # Theoretical focal length in pixels: fx = (f_mm / sensor_width_mm) * resolution_w
-    fx_px = (focal_len_mm / sensor_w_mm) * res_w
+    scene, cameras, models = build_scene(
+        params, PROJECT_ROOT / "SynC" / "models"
+    )
+    target = models[motion["object"]]
+    move_object_along_path(target, path, 0.0)
+    scene.view_layers[0].update()
+    output_dir = Path(output_dir or SCRIPT_DIR)
+    for side in ("left", "right"):
+        (output_dir / side).mkdir(parents=True, exist_ok=True)
+    bpy.ops.wm.save_as_mainfile(
+        filepath=str(output_dir / "ingress_stereo.blend")
+    )
 
-    trajectory_log = {
+    left = params["camera_rig"]["cameras"][0]
+    camera_y = left["pose"]["translation_m"][1]
+    baseline_m = params["camera_rig"]["baseline_m"]
+    width = (
+        scene.render.resolution_x * scene.render.resolution_percentage // 100
+    )
+    height = (
+        scene.render.resolution_y * scene.render.resolution_percentage // 100
+    )
+    fx_px = left["focal_length_mm"] / left["sensor_width_mm"] * width
+    start_depth, end_depth = start.y - camera_y, end.y - camera_y
+    motion_name = (
+        "ingress"
+        if start_depth > end_depth
+        else (
+            "egress"
+            if start_depth < end_depth
+            else "stationary" if length == 0 else "translation"
+        )
+    )
+    target_config = next(
+        model
+        for model in params["models"]
+        if model["name"] == motion["object"]
+    )
+    log = {
         "metadata": {
-            "name": params.get("name", "ingress"),
-            "targetModel": params.get("target_model", "Cassini-Huygens (A).glb"),
-            "sun": params.get("sun", {}),
+            "schema_version": 1,
+            "name": params["scene"]["name"],
+            "targetModel": target_config["file"],
+            "sun": params["environment"]["sun"],
+            "scene_params": params,
             "camera": {
-                "name": cam_cfg.get("name", "Blackfly BFLY-PGE-13S2M-CS"),
-                "resolution": {"width": res_w, "height": res_h},
-                "focalLengthMm": focal_len_mm,
-                "sensorWidthMm": sensor_w_mm,
+                "name": params["camera_rig"]["name"],
+                "resolution": {"width": width, "height": height},
+                "focalLengthMm": left["focal_length_mm"],
+                "sensorWidthMm": left["sensor_width_mm"],
                 "fx_pixels": round(fx_px, 2),
-                "baselineMm": baseline_mm
+                "baselineMm": baseline_m * 1000,
             },
             "trajectory": {
-                "startDistanceMeters": start_m,
-                "endDistanceMeters": stop_m,
-                "stepMeters": increment_m,
-                "totalFrames": total_frames
-            }
+                **motion,
+                "startDistanceMeters": start_depth,
+                "endDistanceMeters": end_depth,
+                "stepMeters": step,
+                "requestedMaxStepMeters": motion["max_step_m"],
+                "totalFrames": total_frames,
+            },
         },
-        "frames": []
+        "frames": [],
     }
-
-    for idx, dist in enumerate(distances):
-        frame_num = idx + 1
-        frame_str = f"{frame_num:04d}"
-
-        target.location.y = dist
-
-        dist_mm = dist * 1000.0
-        theoretical_disparity = (fx_px * baseline_mm) / dist_mm
-
-        left_filename = f"frame_{frame_str}.png"
-        right_filename = f"frame_{frame_str}.png"
-        left_path = os.path.join(left_dir, left_filename)
-        right_path = os.path.join(right_dir, right_filename)
-
-        trajectory_log["frames"].append({
-            "frame": frame_num,
-            "distanceMeters": dist,
-            "theoreticalCenterDisparityPx": round(theoretical_disparity, 3),
-            "leftImage": f"left/{left_filename}",
-            "rightImage": f"right/{right_filename}"
-        })
-
-        if dry_run:
-            continue
-
-        scene.camera = cam_left
-        scene.render.filepath = left_path
-        bpy.ops.render.render(write_still=True)
-
-        scene.camera = cam_right
-        scene.render.filepath = right_path
-        bpy.ops.render.render(write_still=True)
-
-        if frame_num % 10 == 0 or frame_num == 1 or frame_num == total_frames:
-            print(f"[{frame_num}/{total_frames}] Distance {dist:.1f}m -> disparity ~{theoretical_disparity:.2f}px")
-
-    traj_path = os.path.join(script_dir, "ground_truth_trajectory.json")
-    with open(traj_path, "w") as f:
-        json.dump(trajectory_log, f, indent=2)
-    print(f"Saved trajectory log to: {traj_path}")
+    print(f"{motion_name}: {total_frames} stereo pairs, max step {step:.6f}m")
+    for index in range(total_frames):
+        t = index / (total_frames - 1) if total_frames > 1 else 0.0
+        position = move_object_along_path(target, path, t)
+        depth = position.y - camera_y
+        frame = index + 1
+        stem = f"frame_{frame:04d}"
+        names = [
+            f"{side}/{stem}{scene.render.file_extension}"
+            for side in ("left", "right")
+        ]
+        log["frames"].append(
+            {
+                "frame": frame,
+                "distanceMeters": depth,
+                "positionWorldMeters": [round(value, 6) for value in position],
+                "theoreticalCenterDisparityPx": round(
+                    fx_px * baseline_m / depth, 3
+                ),
+                "leftImage": names[0],
+                "rightImage": names[1],
+            }
+        )
+        if not dry_run:
+            scene.view_layers[0].update()
+            for side, camera in zip(("left", "right"), cameras):
+                render_camera(scene, camera, output_dir / side / stem)
+        if frame == 1 or frame == total_frames or frame % 10 == 0:
+            print(
+                f"[{frame}/{total_frames}] Camera-forward depth: {depth:.3f}m"
+            )
+    with open(
+        output_dir / "ground_truth_trajectory.json", "w", encoding="utf-8"
+    ) as log_file:
+        json.dump(log, log_file, indent=2)
     print("Sequence generation complete!")
+    return log
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Render a stereo ingress/egress trajectory from schema v1."
+    )
+    parser.add_argument(
+        "--params",
+        default=str(SCRIPT_DIR / "params.json"),
+        help="Path to shared scene JSON.",
+    )
+    parser.add_argument(
+        "--start", type=float, help="Override start world Y (m)."
+    )
+    parser.add_argument("--stop", type=float, help="Override end world Y (m).")
+    parser.add_argument(
+        "--increment", type=float, help="Maximum sample step (m)."
+    )
+    parser.add_argument(
+        "--target-model", help="Override target asset filename."
+    )
+    parser.add_argument("--azimuth", type=float, help="Sun azimuth (degrees).")
+    parser.add_argument(
+        "--elevation", type=float, help="Sun elevation (degrees)."
+    )
+    parser.add_argument(
+        "--camera-spec", help="Camera profile path, relative to project root."
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Save scene and trajectory log without rendering.",
+    )
+    args = parser.parse_args(
+        sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
+    )
+    overrides = {
+        "start": args.start,
+        "stop": args.stop,
+        "increment": args.increment,
+        "target_model": args.target_model,
+        "sun": {
+            field: value
+            for field, value in (
+                ("azimuth_deg", args.azimuth),
+                ("elevation_deg", args.elevation),
+            )
+            if value is not None
+        },
+    }
+    run_ingress(
+        overrides,
+        args.dry_run,
+        params_path=args.params,
+        camera_spec=args.camera_spec,
+    )
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Render stereo ingress trajectory driven by params.json")
-    parser.add_argument("--params", type=str, default="params.json", help="Path to parameters JSON file")
-    parser.add_argument("--start", type=float, default=None, help="Override start distance in meters")
-    parser.add_argument("--stop", type=float, default=None, help="Override stop distance in meters")
-    parser.add_argument("--increment", type=float, default=None, help="Override step distance in meters")
-    parser.add_argument("--target-model", type=str, default=None, help="Override target model filename")
-    parser.add_argument("--azimuth", type=float, default=None, help="Override sun azimuth in degrees")
-    parser.add_argument("--elevation", type=float, default=None, help="Override sun elevation in degrees")
-    parser.add_argument("--dry-run", action="store_true", help="Generate blend file and ground truth log without rendering")
-
-    args_to_parse = []
-    if "--" in sys.argv:
-        args_to_parse = sys.argv[sys.argv.index("--") + 1:]
-
-    args = parser.parse_args(args_to_parse)
-
-    overrides = {}
-    if args.start is not None: overrides["start"] = args.start
-    if args.stop is not None: overrides["stop"] = args.stop
-    if args.increment is not None: overrides["increment"] = args.increment
-    if args.target_model is not None: overrides["target_model"] = args.target_model
-    if args.azimuth is not None:
-        overrides.setdefault("sun", {})["azimuth_deg"] = args.azimuth
-    if args.elevation is not None:
-        overrides.setdefault("sun", {})["elevation_deg"] = args.elevation
-
-    run_ingress(params_override=overrides if overrides else None, dry_run=args.dry_run)
+    main()

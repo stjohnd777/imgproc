@@ -311,9 +311,20 @@ int main(int argc, char* argv[]) {
     const std::string out_ply   = argv[6];
 
     // Optional parameters
+    // maxDisparity: Maximum horizontal search distance in pixels. 
+    // The matcher searches leftward from the feature over disparities from 0 through this value. Larger values allow farther matches but increase work and the chance of false matches. It must be positive.
     const int maxDisparity = cli::intArg(argc, argv, 7, "maxDisparity", 64, 1, 1000);
+    // patchRadius: Half the width and height of the square image patch compared around each feature. 
+    // The default radius 4 means a 9 × 9 pixel patch, since width is 2r +. 1 2r+1. 
+    // Larger patches have more context but can blur together nearby details.
     const int patchRadius  = cli::intArg(argc, argv, 8, "patchRadius", 4, 1, 32); // patch width = 2*r + 1
+    // vTolerance: How far vertically, in pixels, the matcher may search for the corresponding point. 
+    // A value of 1 searches rows one pixel above and below the feature. Internally the value is rounded 
+    // up to a whole-pixel search range, so 0.5 also searches ±1 row.
     const double vTol      = cli::doubleArg(argc, argv, 9, "vTolerance", 1.0, 0.0, 10.0);
+    // minCorrelation: Minimum normalized cross-correlation score required to 
+    // accept a match. Scores range from -1 to 1; higher is a stricter appearance 
+    // match. The default 0.60 rejects weaker matches.
     const double minCorr   = cli::doubleArg(argc, argv, 10, "minCorrelation", 0.60, -1.0, 1.0);
     const double baseline  = cli::doubleArg(argc, argv, 11, "baselineMm", 120.0, 0.001, 100000.0);
     const double fx        = cli::doubleArg(argc, argv, 12, "fx", 1000.0, 0.001, 100000.0);
@@ -359,6 +370,7 @@ int main(int argc, char* argv[]) {
     const int patchSize = 2 * r + 1;
 
     for (const auto& kp : keypoints) {
+        
         const int ul_int = static_cast<int>(std::round(kp.u));
         const int vl_int = static_cast<int>(std::round(kp.v));
 

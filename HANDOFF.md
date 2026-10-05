@@ -85,17 +85,20 @@ Earlier the whole results folder was wiped on `will-quit`, which destroyed the r
 - Toolbar: `MEDIAN`, `GAUSSIAN`, `STRETCH`, `UNDISTORT`, `SURFACE` added.
 - Schema-driven dialogs replaced the hand-written Threshold/Median/Gaussian ones.
 - Workflow nodes: gear button → parameter dialog.
+- Workflow artifact preview: after a frame completes, image/disparity outputs show an eye action and JSON-like outputs show a file action in the node header. Actions open/select image tabs or read-only JSON tabs for the latest completed frame; other types such as PLY are not yet viewable this way.
 - Tab rename by double-click; workflow names kept unique (they become folder names).
 - Status bar: **Plan run**, **Run**/**Stop**, live progress.
 - Node execution visualizer: live cyan pulsing border/glow, illuminated header, and spinning gear icon on whichever node is actively processing a step.
 - Completion alert: modal dialog on workflow finish/stop with frame counts, lateness, output path, and a **View Results** shortcut button.
 - Results viewer: navigation ribbon icon (folder with graph) listing finished runs under `resultsDir` from `app.json`.
+- Results management: right-click a workflow/run folder and confirm **Delete Workflow** or **Delete Run**, or select it and press Delete/Backspace. Empty workflow/run folders remain visible. The main process only deletes real workflow/run directories under `resultsDir/runs`, refuses symlinks/frame-level paths, and blocks deletion while a run is active.
 - Surface view: intensity as a 3D height field in a separate window, plain canvas 2D (no 3D library), painter's algorithm, viridis/grayscale/heat ramps, drag to rotate, shift-drag to pan, wheel to zoom.
 - JSON Spec Editor Tab: Camera (and algorithm) specs open directly in editor tabs from the sidebar via open button, row double-click, or title click. Supports live JSON syntax checking, dirty indicators, 2-space Tab indent, format, revert, and disk saving with `Cmd+S` / `Ctrl+S` that immediately hot-reloads spec models across the application.
 
 **Main**
 - `prepareWorkflowRun` — topological sort, artifact paths, problem reporting, no execution.
 - `runWorkflow` / `stopWorkflow` — frame loop, progress events (`started`, `step`, `frame`, `finished`, `failed`), one run at a time.
+- Frame events include each node's output-port artifact refs, used by the renderer's latest-frame artifact actions. `workflow:openArtifact` only serves paths under `allowedFolders` and supports image files and JSON.
 - Builtins: `dir_source`, `single_image`, `sync_camera_source`, `passthrough`, `save_to_dir`, `save_text_to_dir`, `save_pointcloud_to_dir`.
 - Workflow documents: Open, Save, and Save As use versioned `navlib-workflow` JSON. Files contain node IDs/element IDs/params/positions and edges; ports are rebuilt from the current element catalog on open. Save As defaults to `resultsDir/workflows/`. Saved local paths do not grant access; opening warns when paths need to be reselected in node settings.
 - `app.json` settings with `~` expansion and fallback.
@@ -129,8 +132,10 @@ App-level checks were headless via Electron with a hidden `BrowserWindow`, drivi
 | Stop mid-run; second concurrent run refused | pass |
 | `app.json` missing / malformed / override | pass |
 | Runs survive quit, scratch deleted | pass |
+| Results deletion is constrained to workflow/run directories, confirms in UI, and refreshes tree | implementation added; native filesystem deletion not yet exercised |
 | Ingress frame 1 stereo scale: same 587 matches at `fx=1000` and `fx=3200`; mean Z changes from 29.5 m to 94.4 m against 100 m ground truth | pass; confirms the earlier 1000 px focal default was the dominant scale error |
 | Workflow model/controller save flow: Save As, dirty tracking, Save, Open in new tab | pass with mocked IPC and a connected source-to-sink graph |
+| Workflow artifact controller: open image, open JSON, reuse existing artifact tab | pass with mocked IPC |
 
 Serialized stereo coordinates use meters in a rectified camera frame: `X` is image-right, `Y` is image-down, and `Z` is forward. Internally the CLI computes millimeters because the baseline parameter is in mm. For the Blender ingress rig, forward `+Y` maps to stereo `+Z`; the scene origin target at 100 m should therefore be near `[0, 0, 100]` m (about `[0.06, 0, 100]` m from the left camera). The average of sparse feature positions is not guaranteed to be at the target origin because the spacecraft is rotated and detected features are not symmetrically distributed. Validate per-point errors against ground truth before treating the mean as the spacecraft center.
 
@@ -141,7 +146,7 @@ Serialized stereo coordinates use meters in a rectified camera frame: `X` is ima
 ## Unresolved issues
 
 1. **`loop: true` on Image Directory does nothing.** Without a frame cap it would run forever. Needs either a max-frames parameter or an explicit loop-until-stopped mode.
-2. **Runs accumulate indefinitely** under `~/data/navlib/runs`. No pruning or "open runs folder" button.
+2. **Runs still accumulate unless manually deleted** under `~/data/navlib/runs`; Results supports deleting a workflow or run, but no retention policy or bulk cleanup exists.
 3. **16-bit input is degraded by every tool except `stretch`.** They use `IMREAD_COLOR`. Stretch first, or convert the others to `IMREAD_UNCHANGED`.
 4. **`elements/` and the new `cv-cli` tools are untracked.** Needs `git add`. `review.md` is also untracked and unexamined.
 5. **Legacy Camera Source and Disparity cannot run** in a workflow — no `exec`. `sync_camera_source` is the runnable synthetic stereo source; the Disparity tool is still not written.
@@ -162,7 +167,7 @@ Serialized stereo coordinates use meters in a rectified camera frame: `X` is ima
 1. **Validate the user's `space/` run** (issue 14): check saved `fx`, `fy`, baseline, image dimensions, disparity distribution, and compare individual reconstructed points with first-frame ground truth.
 2. **Commit.** `elements/`, `cv-cli/common/`, the new tools, `app.json`, `surface.html`, `surface-preload.cjs`, and current SynC source/config files are untracked.
 3. **Decide the `loop` semantics** (issue 1) — smallest gap between here and continuous running.
-4. **Show run results in the UI.** Nothing currently opens a run's artifacts; the graph runs and the files appear, but you must look in Finder. A per-node preview thumbnail, or clicking a node to open its latest frame in a tab, is the obvious next feature.
+4. **Browse historical run artifacts in the UI.** Node header actions show only the latest frame while a workflow tab is open; the Results view still does not navigate a run's per-node/per-frame outputs.
 5. **Per-node run state on the canvas** — idle/running/failed, and the failing step highlighted.
 6. **16-bit handling** (issue 3) — decide whether tools read unchanged.
 7. **Keypoints from the other detectors** (issue 6) if features are to flow between nodes.

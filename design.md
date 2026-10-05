@@ -142,6 +142,7 @@ The Activity Bar's workflow button (below 6-DoF) opens an image-processing **wor
 - **Palette (side bar):** lists `elements/`, one file per element, grouped into Sources, Transforms and Sinks, each with its own colour. Files that don't parse or lack `kind` show as red rows. ⟳ reloads the folder.
 - **Canvas (editor tab):** a workflow tab has `type: 'workflow'` and holds a `graph` instead of an image, so it has no image toolbar or zoom bar. Opening the Workflow view creates one if none exists; **New Workflow** adds more. **Open Workflow** opens a saved graph in a new tab. Workflow tabs split, move and close like image tabs.
 - **Nodes:** drag an element from the palette onto the canvas to add a node at the drop point. Drag a node by its header to move it; ✕ removes it. Inputs are on the left, outputs on the right, telemetry along the bottom.
+- **Latest artifacts:** after a frame completes, nodes with image/disparity outputs show an eye button and nodes with JSON-like `text`, `keypoints`, or `matches` outputs show a file button in the header. Each button opens that port's artifact from the latest completed frame in a new tab (or selects it if already open). JSON artifact tabs are read-only. Other formats such as PLY do not currently have a viewer button.
 - A node copies its element's ports and parameter defaults when created, so a graph stays drawable if `elements/` changes later.
 - **Connections:** drag from any port to a port on another node (either direction works). While dragging, ports that can accept the connection are highlighted and the rest are dimmed; releasing anywhere else cancels. Wires are bezier curves in an SVG layer under the nodes, measured from the port dots so they follow nodes as they move. Telemetry wires leave downward and are dashed purple.
 - **Removing a connection:** click it to select it, then press Delete/Backspace or click the ✕ at its midpoint. Escape or clicking empty canvas deselects. Removing a node removes its connections.
@@ -161,7 +162,7 @@ Each edge is stored as `{ id, from: { nodeId, port, direction }, to: { nodeId, p
 
 **Save/Load:** **Save** and **Save As** are on the workflow status bar; `Cmd/Ctrl+S` saves and `Cmd/Ctrl+Shift+S` opens Save As. Open/Save use native dialogs. Files use versioned JSON with `format: "navlib-workflow"` and `schemaVersion: 1`; they store the name, node IDs/element IDs/names/parameters/positions, and edges. Ports are rebuilt from the current `elements/` catalog when opened, so a document never chooses what executable or ports are trusted. The default Save As location is `<resultsDir>/workflows/`. Existing local folder/file parameters are preserved, but opening the document does not grant filesystem access; the app warns if paths must be reselected. Saving is atomic. Unsupported versions, oversized files, unknown elements, invalid parameter values, invalid edges, and cycles are rejected.
 
-Node parameters and workflow execution are implemented; persistence now covers opening, saving, and saving a copy.
+Node parameters, workflow execution/persistence, and latest-frame artifact viewing are implemented.
 
 #### Element files (`elements/`)
 
@@ -443,6 +444,8 @@ Steps pass data as files. Every tool is already a separate process that reads a 
 Extensions come from the port type: `image` and `disparity` are `png`, `keypoints` and `matches` are `json`, `pointcloud` is `ply`.
 
 `prepareWorkflowRun` in `main.js` works all this out without running anything: it topologically sorts the nodes, assigns each output a path, resolves each input to the file its incoming edge's source will write, and reports problems instead of a plan when the graph is empty, contains a loop, or has an unconnected input. The **Plan run** button in the workflow status bar shows the resulting order and folder. The run folder is created and added to `allowedFolders`, so results can be reprocessed by the toolbar like any other image.
+
+The Results sidebar supports deleting a whole workflow-results folder or an individual run: right-click its folder row and choose **Delete Workflow** / **Delete Run**, or focus that row and press Delete/Backspace. Both actions confirm before deleting. Frame-level folders are not deletable from the tree. Main revalidates that the target is a real directory no deeper than workflow/run under `resultsDir/runs`, rejects symlinks and active runs, then removes it recursively. Empty workflow/run folders remain listed so they can also be cleaned up.
 
 Names are slugged before they touch the filesystem, with leading dots stripped so a workflow called `..` cannot escape the runs folder.
 
