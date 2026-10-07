@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "process_text",
+  "name": "Process Text",
+  "kind": "transform",
+  "category": "utility",
+  "icon": "file",
+  "summary": "Transform JSON with a synchronous JavaScript process(objIn) function",
+  "inputs": [{ "name": "text", "type": "text" }],
+  "outputs": [{ "name": "text", "type": "text" }],
+  "params": {
+    "code": {
+      "type": "code",
+      "label": "JavaScript function",
+      "default": "function process(objIn) {\n  const points = Array.isArray(objIn) ? objIn : objIn.keypoints;\n  if (!Array.isArray(points)) throw new Error('Expected an array or a keypoints array');\n  if (points.length === 0) return { count: 0, mean: null, boundingBox: null };\n  let sumU = 0, sumV = 0;\n  let minU = Infinity, minV = Infinity, maxU = -Infinity, maxV = -Infinity;\n  for (const point of points) {\n    if (!point || !Number.isFinite(point.u) || !Number.isFinite(point.v)) {\n      throw new Error('Each point must have finite numeric u and v values');\n    }\n    sumU += point.u; sumV += point.v;\n    minU = Math.min(minU, point.u); minV = Math.min(minV, point.v);\n    maxU = Math.max(maxU, point.u); maxV = Math.max(maxV, point.v);\n  }\n  return {\n    count: points.length,\n    mean: { u: sumU / points.length, v: sumV / points.length },\n    boundingBox: { minU, minV, maxU, maxV, width: maxU - minU, height: maxV - minV }\n  };\n}",
+      "description": "Define function process(objIn) and return a JSON value. Synchronous only: no await, imports, file or network APIs. Runs once per frame with a 1-second limit. Only run scripts/workflows you trust; this is not a security sandbox."
+    }
+  },
+  "telemetry": [],
+  "exec": { "builtin": "process_text" }
+}

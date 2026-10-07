@@ -4,26 +4,20 @@ import argparse
 from pathlib import Path
 import sys
 
-import bpy
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "SynC" / "pylib"))
 from scene_config import load_scene_params  # noqa: E402
-from scene_setup import build_scene, render_camera  # noqa: E402
+from render_scene import (  # noqa: E402
+    render_scene as render_configured_scene,
+    render_static_views,
+)
 
 
 def render_scene(scene, cameras, output_dir):
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    stem = "cassini-stereo-pair"
-    scene.camera = cameras[0]
-    bpy.ops.wm.save_as_mainfile(filepath=str(output_dir / f"{stem}.blend"))
-    for camera in cameras:
-        path = render_camera(
-            scene, camera, output_dir / f"{stem}_{camera.name.lower()}"
-        )
-        print(f"Saved {camera.name}: {path}")
+    return render_static_views(
+        scene, cameras, output_dir, "cassini-stereo-pair"
+    )
 
 
 def main():
@@ -44,8 +38,12 @@ def main():
             "The static-pair driver does not execute trajectories. "
             "Use build_ingress_scene.py for a trajectory configuration."
         )
-    scene, cameras, _ = build_scene(params, PROJECT_ROOT / "SynC" / "models")
-    render_scene(scene, cameras, SCRIPT_DIR)
+    render_configured_scene(
+        params,
+        SCRIPT_DIR,
+        models_dir=PROJECT_ROOT / "SynC" / "models",
+        prefix="cassini-stereo-pair",
+    )
 
 
 if __name__ == "__main__":

@@ -44,6 +44,11 @@ coverage/
 *.gcno
 *.gcov
 
+# Python bytecode and test caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
 # Docker local files
 .env
 .env.*
@@ -63,6 +68,15 @@ navlib-out/
 
 sparse/
 
-# Generated synthetic ingress frames
-/SynC/scenes/ingress/left/
-/SynC/scenes/ingress/right/
+# Generated synthetic scene output (keep scripts and params.json)
+/SynC/scenes/**/output/
+/SynC/scenes/**/left/
+/SynC/scenes/**/right/
+/SynC/scenes/**/*.png
+/SynC/scenes/**/*.jpg
+/SynC/scenes/**/*.jpeg
+/SynC/scenes/**/*.tif
+/SynC/scenes/**/*.tiff
+/SynC/scenes/**/*.exr
+/SynC/scenes/**/render_manifest.json
+/SynC/scenes/**/ground_truth_trajectory.json

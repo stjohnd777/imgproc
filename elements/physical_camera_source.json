@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "physical_camera_source",
+  "name": "Physical Camera",
+  "kind": "source",
+  "category": "source",
+  "icon": "camera",
+  "summary": "Captures a finite batch from a connected OpenCV camera, then processes the saved images.",
+  "inputs": [],
+  "outputs": [
+    { "name": "image", "type": "image" }
+  ],
+  "params": {
+    "device_id": {
+      "type": "number",
+      "label": "Camera device ID",
+      "default": 0,
+      "min": 0,
+      "max": 2147483647,
+      "step": 1,
+      "description": "Nonnegative OpenCV camera index. Camera resolution is selected by the device/backend."
+    },
+    "output_dir": {
+      "type": "folder",
+      "label": "Capture output directory",
+      "default": "~/data/camera0",
+      "create": true,
+      "description": "Each execution creates a new capture-* subfolder here. Existing captures are retained."
+    },
+    "frame_count": {
+      "type": "number",
+      "label": "Frames to capture",
+      "default": 10,
+      "min": 1,
+      "max": 2147483647,
+      "step": 1,
+      "description": "Positive finite frame count. Capture completes before pipeline processing; continuous capture is not supported in workflows."
+    }
+  },
+  "telemetry": [],
+  "exec": { "builtin": "physical_camera_source" }
+}

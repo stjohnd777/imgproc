@@ -3,7 +3,7 @@
   "id": "convert",
   "name": "Convert",
   "kind": "transform",
-  "category": "filter",
+  "category": "utility",
   "icon": "transform",
   "summary": "Convert pixel type (grayscale, RGB), bit depth (U8, U16), and resize with aspect-ratio letterboxing.",
   "inputs": [

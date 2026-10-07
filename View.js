@@ -1,5 +1,9 @@
 // The view: draws the model into the DOM and forwards user input to the controller.
 // It never changes the model itself.
+import { cameraParameters } from './camera_parameters.js';
+import { showSceneDialog } from './scene_dialog.js';
+import { ELEMENT_CATEGORIES, elementCategory, fitScale, nodeParameterSummary } from './view_helpers.js';
+import { buildConsole } from './tab_console.js';
 
 // Custom drag type so only our own tabs are accepted as drops (not text/files dragged in from elsewhere).
 const TAB_DRAG_TYPE = 'application/x-editor-tab';
@@ -65,23 +69,6 @@ const ELEMENT_KINDS = [
     { kind: 'transform', icon: 'transform' },
     { kind: 'sink', icon: 'storage' }
 ];
-
-// Palette sections, in pipeline order. An element's `category` picks its section.
-const ELEMENT_CATEGORIES = [
-    { category: 'source', title: 'Sources' },
-    { category: 'filter', title: 'Filters' },
-    { category: 'feature', title: 'Features' },
-    { category: 'analysis', title: 'Analysis' },
-    { category: 'stereo', title: 'Stereo & Geometry' },
-    { category: 'flow', title: 'Flow' },
-    { category: 'sink', title: 'Sinks' }
-];
-
-// Elements without a `category` fall back to one based on their role.
-function elementCategory(element) {
-    if (element.category) return element.category;
-    return element.kind === 'transform' ? 'filter' : element.kind;
-}
 
 const WORKFLOW_CANVAS_SIZE = { width: 3000, height: 2000 };
 
@@ -163,6 +150,7 @@ export class View {
         this.thresholdModal = thresholdModal;
         // Last values used in each parameter dialog, so reopening it starts from them.
         this.dialogDefaults = {};
+        this.collapsedPaletteCategories = new Set();
         this.disparityModal = disparityModal;
         this.editorArea = editorArea;
         this.sideBar = sideBar;
@@ -271,13 +259,37 @@ export class View {
             const elements = valid.filter(item => elementCategory(item.spec) === category);
             if (elements.length === 0) continue;
 
-            const heading = document.createElement('div');
+            const heading = document.createElement('button');
+            heading.type = 'button';
             heading.className = 'palette-heading';
-            heading.textContent = title;
+            const twisty = document.createElement('span');
+            twisty.className = 'palette-twisty';
+            twisty.setAttribute('aria-hidden', 'true');
+            heading.appendChild(twisty);
+            const headingLabel = document.createElement('span');
+            headingLabel.textContent = `${title} (${elements.length})`;
+            heading.appendChild(headingLabel);
             this.sideBar.appendChild(heading);
 
             const list = document.createElement('ul');
             list.className = 'palette-list';
+            list.id = `palette-category-${encodeURIComponent(category)}`;
+            heading.setAttribute('aria-controls', list.id);
+            const updateExpanded = () => {
+                const expanded = !this.collapsedPaletteCategories.has(category);
+                heading.setAttribute('aria-expanded', String(expanded));
+                twisty.textContent = expanded ? '▾' : '▸';
+                list.hidden = !expanded;
+            };
+            updateExpanded();
+            heading.addEventListener('click', () => {
+                if (this.collapsedPaletteCategories.has(category)) {
+                    this.collapsedPaletteCategories.delete(category);
+                } else {
+                    this.collapsedPaletteCategories.add(category);
+                }
+                updateExpanded();
+            });
             for (const { file, spec } of elements) {
                 const item = document.createElement('li');
                 item.className = `palette-item wf-${spec.kind}`;
@@ -861,6 +873,26 @@ export class View {
     }
 
     renderContent(container, activeTab) {
+        this.renderTabContent(container, activeTab);
+        if (activeTab) container.appendChild(buildConsole(activeTab, () => this.render()));
+    }
+
+    refreshConsole(tab) {
+        const panels = document.querySelectorAll('[data-console-tab]');
+        for (const panel of panels) {
+            if (panel.dataset.consoleTab !== tab.id) continue;
+            const body = panel.querySelector('.console-output');
+            if (body.hidden && tab.console.expanded) {
+                panel.replaceWith(buildConsole(tab, () => this.render()));
+                continue;
+            }
+            const top = body.scrollTop;
+            body.value = tab.console.text;
+            body.scrollTop = tab.console.follow ? body.scrollHeight : top;
+        }
+    }
+
+    renderTabContent(container, activeTab) {
         if (!activeTab) {
             const empty = document.createElement('div');
             empty.className = 'empty-state';
@@ -879,7 +911,7 @@ export class View {
             return;
         }
 
-        if (activeTab.type === 'json-artifact') {
+        if (activeTab.type === 'json-artifact' || activeTab.type === 'text-artifact') {
             this.renderJsonArtifact(container, activeTab);
             return;
         }
@@ -918,8 +950,11 @@ export class View {
         img.addEventListener('load', () => {
             statusBar.textContent = dimensionsText();
 
-            img.style.width = `${img.naturalWidth * (tab.zoom / 100)}px`;
-            img.style.height = `${img.naturalHeight * (tab.zoom / 100)}px`;
+            const scale = tab.fitImage
+                ? fitScale(img.naturalWidth, img.naturalHeight, img.parentElement.clientWidth - 24, img.parentElement.clientHeight - 24)
+                : tab.zoom / 100;
+            img.style.width = `${img.naturalWidth * scale}px`;
+            img.style.height = `${img.naturalHeight * scale}px`;
 
             const canvas = document.createElement('canvas');
             canvas.width = img.naturalWidth;
@@ -1111,7 +1146,7 @@ export class View {
         toolbar.className = 'json-editor-toolbar';
         const title = document.createElement('span');
         title.className = 'json-editor-status';
-        title.textContent = 'JSON artifact · read only';
+        title.textContent = tab.type === 'text-artifact' ? 'Text artifact · read only' : 'JSON artifact · read only';
         toolbar.appendChild(title);
         wrapper.appendChild(toolbar);
 
@@ -1145,7 +1180,16 @@ export class View {
         canvas.className = 'workflow-canvas';
         canvas.style.width = `${WORKFLOW_CANVAS_SIZE.width}px`;
         canvas.style.height = `${WORKFLOW_CANVAS_SIZE.height}px`;
-        viewport.appendChild(canvas);
+        const scale = tab.workflowScale ?? 1;
+        canvas.style.transform = `scale(${scale})`;
+        canvas.style.transformOrigin = 'top left';
+        const extent = document.createElement('div');
+        extent.style.width = `${WORKFLOW_CANVAS_SIZE.width * scale}px`;
+        extent.style.height = `${WORKFLOW_CANVAS_SIZE.height * scale}px`;
+        extent.style.position = 'relative';
+        canvas.style.position = 'absolute';
+        extent.appendChild(canvas);
+        viewport.appendChild(extent);
 
         // Connections live in an SVG layer under the nodes.
         const svg = document.createElementNS(SVG_NS, 'svg');
@@ -1172,7 +1216,8 @@ export class View {
             if (!dot) return null;
             const d = dot.getBoundingClientRect();
             const c = canvas.getBoundingClientRect();
-            return { x: d.left + d.width / 2 - c.left, y: d.top + d.height / 2 - c.top };
+            const scale = tab.workflowScale ?? 1;
+            return { x: (d.left + d.width / 2 - c.left) / scale, y: (d.top + d.height / 2 - c.top) / scale };
         };
 
         const drawEdges = () => {
@@ -1249,7 +1294,8 @@ export class View {
             viewport.classList.remove('drag-over');
             const rect = canvas.getBoundingClientRect();
             this.controller.addWorkflowNode(tab.id, event.dataTransfer.getData(ELEMENT_DRAG_TYPE),
-                event.clientX - rect.left, event.clientY - rect.top);
+                (event.clientX - rect.left) / (tab.workflowScale ?? 1),
+                (event.clientY - rect.top) / (tab.workflowScale ?? 1));
         });
 
         // Every render rebuilds the canvas, so keep the scroll position on the tab.
@@ -1271,6 +1317,24 @@ export class View {
         summary.textContent = `nodes: ${tab.graph.nodes.length}  connections: ${tab.graph.edges.length}`
             + '  —  drag from a port to connect; click a connection, then Delete to remove it';
         status.appendChild(summary);
+        const fit = document.createElement('button');
+        fit.className = 'plan-btn';
+        fit.textContent = 'Fit Workflow';
+        fit.addEventListener('click', () => {
+            const nodes = [...canvas.querySelectorAll('.workflow-node')];
+            if (!nodes.length) return;
+            const right = Math.max(...nodes.map(node => node.offsetLeft + node.offsetWidth)) + 24;
+            const bottom = Math.max(...nodes.map(node => node.offsetTop + node.offsetHeight)) + 24;
+            tab.workflowScale = fitScale(right, bottom, viewport.clientWidth, viewport.clientHeight);
+            tab.scroll = { left: 0, top: 0 };
+            this.render();
+        });
+        const actual = document.createElement('button');
+        actual.className = 'plan-btn';
+        actual.textContent = '100%';
+        actual.title = 'Reset workflow scale';
+        actual.addEventListener('click', () => { tab.workflowScale = 1; this.render(); });
+        status.append(fit, actual);
 
         const save = document.createElement('button');
         save.className = 'plan-btn';
@@ -1415,6 +1479,14 @@ export class View {
         for (const port of node.outputs) outputs.appendChild(this.buildPort(tab, node, port, 'output'));
         body.append(inputs, outputs);
         el.appendChild(body);
+        const parameterText = nodeParameterSummary(node);
+        if (parameterText) {
+            const summary = document.createElement('div');
+            summary.className = 'workflow-node-summary';
+            summary.textContent = parameterText;
+            summary.title = parameterText;
+            el.appendChild(summary);
+        }
 
         if (node.telemetry.length > 0) {
             const telemetry = document.createElement('div');
@@ -1435,8 +1507,8 @@ export class View {
             let y = node.y;
 
             const onMove = moveEvent => {
-                x = Math.max(0, node.x + moveEvent.clientX - startX);
-                y = Math.max(0, node.y + moveEvent.clientY - startY);
+                x = Math.max(0, node.x + (moveEvent.clientX - startX) / (tab.workflowScale ?? 1));
+                y = Math.max(0, node.y + (moveEvent.clientY - startY) / (tab.workflowScale ?? 1));
                 el.style.left = `${x}px`;
                 el.style.top = `${y}px`;
                 canvas?.workflow?.drawEdges();
@@ -1505,7 +1577,8 @@ export class View {
             let hovered = null;
             const onMove = moveEvent => {
                 const c = canvas.getBoundingClientRect();
-                const p = { x: moveEvent.clientX - c.left, y: moveEvent.clientY - c.top };
+                const scale = tab.workflowScale ?? 1;
+                const p = { x: (moveEvent.clientX - c.left) / scale, y: (moveEvent.clientY - c.top) / scale };
                 preview.setAttribute('d', startsAtInput ? edgePath(p, anchor, 'output').d : edgePath(anchor, p, direction).d);
 
                 const over = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY)?.closest('.workflow-port.connect-candidate');
@@ -1563,6 +1636,11 @@ export class View {
         addButton('−', 'Zoom out', tab.zoom - 25);
         addButton(`${tab.zoom}%`, 'Reset to 100%', 100, 'zoom-level');
         addButton('+', 'Zoom in', tab.zoom + 25);
+        const fit = document.createElement('button');
+        fit.textContent = 'Fit Image';
+        fit.title = 'Fit image within the editor pane';
+        fit.addEventListener('click', () => { tab.fitImage = true; this.render(); });
+        zoomBar.appendChild(fit);
 
         return zoomBar;
     }
@@ -1793,6 +1871,14 @@ export class View {
                 }
                 inputs[spec.name] = { input, spec };
                 continue;
+            } else if (spec.type === 'code') {
+                input = document.createElement('textarea');
+                input.className = 'workflow-code-editor';
+                input.rows = 20;
+                input.required = true;
+                input.spellcheck = false;
+                input.value = value ?? '';
+                input.setAttribute('aria-label', spec.label ?? spec.name);
             } else if (spec.type === 'text') {
                 input = document.createElement('input');
                 input.type = 'text';
@@ -1828,6 +1914,24 @@ export class View {
             inputs[spec.name] = { input, spec };
         }
 
+        if (inputs.camera && inputs.fx && inputs.fy && inputs.cx && inputs.cy) {
+            inputs.camera.input.addEventListener('change', () => {
+                const select = inputs.camera.input;
+                select.setCustomValidity('');
+                if (!select.value) return;
+                const camera = this.specs.cameras.specs?.find(item => item.file === select.value);
+                const parameters = cameraParameters(camera?.spec);
+                if (!parameters) {
+                    select.setCustomValidity('This profile has no supported K/distortion values. Choose another profile or enter values manually.');
+                    select.reportValidity();
+                    return;
+                }
+                for (const [name, value] of Object.entries(parameters)) {
+                    if (inputs[name]) inputs[name].input.value = value;
+                }
+            });
+        }
+
         if (specs.length === 0) {
             const empty = document.createElement('p');
             empty.className = 'modal-help';
@@ -1839,7 +1943,7 @@ export class View {
             event.preventDefault();
             const values = Object.fromEntries(Object.entries(inputs).map(([name, { input, spec }]) => {
                 if (spec.type === 'boolean') return [name, input.checked];
-                if (spec.type === 'folder' || spec.type === 'file' || spec.type === 'text') return [name, input.value === '' ? null : input.value];
+                if (spec.type === 'folder' || spec.type === 'file' || spec.type === 'text' || spec.type === 'code') return [name, input.value === '' ? null : input.value];
                 if (spec.type === 'enum') return [name, input.value === '' ? null : input.value];
                 return [name, Number(input.value)];
             }));
@@ -1854,6 +1958,7 @@ export class View {
         reset.textContent = 'Defaults';
         reset.addEventListener('click', () => {
             for (const { input, spec } of Object.values(inputs)) {
+                input.setCustomValidity('');
                 if (spec.type === 'boolean') input.checked = Boolean(spec.default);
                 else input.value = spec.default ?? '';
             }
@@ -1888,7 +1993,9 @@ export class View {
 
     // Workflow node: declarations come from the element file, values are stored on the node.
     showNodeParamsDialog(tab, node, element) {
-        const isWide = element?.id === 'remap' || node.elementId === 'remap' ||
+        if (element?.id === 'synthetic_scene_source') return showSceneDialog(this, tab, node, element);
+        const isWide = element?.id === 'process_text' || node.elementId === 'process_text' ||
+                       element?.id === 'remap' || node.elementId === 'remap' ||
                        element?.id === 'sync_camera_source' || node.elementId === 'sync_camera_source';
         this.showSchemaDialog({
             title: `${node.name} parameters`,
@@ -1973,6 +2080,7 @@ export class View {
     elementParamSpecs(element) {
         return Object.entries(element?.params ?? {}).map(([name, spec]) => {
             const common = { name, label: spec.label ?? name, hint: spec.description, default: spec.default };
+            if (spec.type === 'code') return { ...common, type: 'code', default: spec.default ?? '' };
             if (spec.type === 'boolean') return { ...common, type: 'boolean' };
             if (spec.type === 'folder') {
                 return { ...common, type: 'folder', create: spec.create ?? false, default: spec.default ?? '' };
@@ -2100,12 +2208,7 @@ export class View {
         const cameras = this.specs.cameras.specs?.filter(item => item.spec) ?? [];
 
         // K and distortion (k1, k2, p1, p2, k3) from a camera spec, or null when it has no intrinsics.
-        const fromCamera = spec => {
-            const K = spec?.intrinsics?.K;
-            if (!Array.isArray(K) || K.length !== 3) return null;
-            const d = Array.isArray(spec.intrinsics.distortion) ? spec.intrinsics.distortion : [];
-            return { fx: K[0][0], fy: K[1][1], cx: K[0][2], cy: K[1][2], k1: d[0] ?? 0, k2: d[1] ?? 0, p1: d[2] ?? 0, p2: d[3] ?? 0, k3: d[4] ?? 0 };
-        };
+        const fromCamera = cameraParameters;
         const withK = cameras.find(item => fromCamera(item.spec));
         const initial = this.dialogDefaults.UNDISTORT
             ?? fromCamera(withK?.spec)

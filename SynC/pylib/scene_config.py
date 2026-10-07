@@ -260,22 +260,110 @@ def validate_scene_params(params):
 
     if "trajectory" in params:
         trajectory = _mapping(params["trajectory"], "trajectory")
-        if trajectory.get("type") != "linear":
-            raise ValueError("Only linear trajectories are supported.")
+        if trajectory.get("type") not in {
+            "linear",
+            "piecewise_linear",
+            "orbit",
+        }:
+            raise ValueError(
+                "Only linear, piecewise_linear, and orbit trajectories "
+                "are supported."
+            )
         if trajectory.get("frame") != "world":
             raise ValueError("trajectory.frame must be 'world'.")
-        if trajectory.get("object") not in {model["name"] for model in models}:
+        model_names = {model["name"] for model in models}
+        if trajectory["type"] == "orbit":
+            if trajectory.get("target") not in model_names:
+                raise ValueError(
+                    "trajectory.target must name a configured model."
+                )
+            if any(
+                key in trajectory
+                for key in (
+                    "object",
+                    "start_position_m",
+                    "end_position_m",
+                    "waypoints_m",
+                )
+            ):
+                raise ValueError(
+                    "Orbit moves the camera rig; use target, not model-path "
+                    "object or endpoint fields."
+                )
+            axis = vector3(
+                trajectory.get("axis_world", [0, 0, 1]),
+                "trajectory.axis_world",
+            )
+            if math.hypot(*axis) == 0:
+                raise ValueError("trajectory.axis_world must be nonzero.")
+            if "radius_m" in trajectory:
+                finite_number(
+                    trajectory["radius_m"],
+                    "trajectory.radius_m",
+                    positive=True,
+                )
+            finite_number(
+                trajectory.get("start_angle_deg", 0),
+                "trajectory.start_angle_deg",
+            )
+            finite_number(
+                trajectory.get("sweep_angle_deg", 360),
+                "trajectory.sweep_angle_deg",
+            )
+            if not isinstance(trajectory.get("track_target", True), bool):
+                raise ValueError("trajectory.track_target must be a boolean.")
+        elif trajectory.get("object") not in model_names:
             raise ValueError("trajectory.object must name a configured model.")
-        vector3(
-            trajectory.get("start_position_m"), "trajectory.start_position_m"
-        )
-        vector3(trajectory.get("end_position_m"), "trajectory.end_position_m")
+        if trajectory["type"] == "linear":
+            vector3(
+                trajectory.get("start_position_m"),
+                "trajectory.start_position_m",
+            )
+            vector3(
+                trajectory.get("end_position_m"), "trajectory.end_position_m"
+            )
+        elif trajectory["type"] == "piecewise_linear":
+            points = trajectory.get("waypoints_m")
+            if not isinstance(points, list) or len(points) < 2:
+                raise ValueError("waypoints_m needs at least two positions.")
+            for point in points:
+                vector3(point, "trajectory.waypoints_m")
         finite_number(
             trajectory.get("max_step_m"),
             "trajectory.max_step_m",
             positive=True,
         )
+    if "output" in params:
+        output = _mapping(params["output"], "output")
+        safe_filename(output.get("prefix", "scene"), "output.prefix")
+        if "camera_directories" in output:
+            directories = _mapping(
+                output["camera_directories"], "output.camera_directories"
+            )
+            camera_names = {camera["name"] for camera in cameras}
+            if not set(directories).issubset(camera_names):
+                raise ValueError(
+                    "output.camera_directories must reference "
+                    "configured cameras."
+                )
+            for directory in directories.values():
+                safe_filename(directory, "output.camera_directories")
+        if "log_filename" in output:
+            safe_filename(output["log_filename"], "output.log_filename")
     return params
+
+
+def safe_filename(value, name):
+    """Reject path components and unsafe names rather than sanitizing them."""
+    if (
+        not isinstance(value, str)
+        or not value
+        or value in {".", ".."}
+        or any(char in value for char in '/\\:*?"<>|')
+        or any(ord(char) < 32 for char in value)
+    ):
+        raise ValueError(f"{name} must be a nonempty filename component.")
+    return value
 
 
 def load_scene_params(params_path):

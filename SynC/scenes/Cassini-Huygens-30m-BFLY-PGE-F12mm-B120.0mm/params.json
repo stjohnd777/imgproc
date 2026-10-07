@@ -1,5 +1,8 @@
 {
   "schema_version": 1,
+  "output": {
+    "prefix": "cassini-stereo-pair"
+  },
   "scene": {
     "name": "Cassini stereo scene",
     "units": "meters",

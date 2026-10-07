@@ -3,7 +3,7 @@
   "id": "stretch",
   "name": "Stretch Contrast",
   "kind": "transform",
-  "category": "filter",
+  "category": "enhancement",
   "icon": "transform",
   "summary": "Contrast stretch (auto-levels). Maps a chosen input range onto the full output range, which is how dark 12-bit-in-16-bit frames are made viewable. Reads 16-bit input unchanged and outputs 8-bit.",
   "inputs": [

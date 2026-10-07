@@ -3,7 +3,7 @@
   "id": "splitter",
   "name": "Splitter",
   "kind": "transform",
-  "category": "flow",
+  "category": "utility",
   "icon": "transform",
   "summary": "Passes one image to two branches for parallel processing. Optional: any output can already feed several inputs.",
   "inputs": [

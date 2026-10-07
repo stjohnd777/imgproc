@@ -2,25 +2,20 @@
 
 import argparse
 import copy
-import json
 import math
 from pathlib import Path
 import sys
 
-import bpy
-from mathutils import Vector
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "SynC" / "pylib"))
-from ingress_egress import LinearSegment, move_object_along_path  # noqa: E402
 from scene_config import (  # noqa: E402
     apply_camera_spec,
     finite_number,
     load_scene_params,
     validate_scene_params,
 )
-from scene_setup import build_scene, render_camera  # noqa: E402
+from render_scene import render_scene  # noqa: E402
 
 
 def apply_ingress_overrides(params, overrides):
@@ -36,6 +31,8 @@ def apply_ingress_overrides(params, overrides):
         if value is None:
             continue
         if key in {"start", "stop"}:
+            if trajectory["type"] != "linear":
+                raise ValueError("--start/--stop require a linear trajectory.")
             finite_number(value, key, positive=True)
             endpoint = (
                 "start_position_m" if key == "start" else "end_position_m"
@@ -118,6 +115,10 @@ def validate_stereo_trajectory(params):
     trajectory = params.get("trajectory")
     if trajectory is None:
         raise ValueError("The ingress driver requires a trajectory section.")
+    if trajectory["type"] == "orbit":
+        raise ValueError(
+            "Use the universal render_scene.py driver for camera-rig orbit."
+        )
     rig = params["camera_rig"]
     cameras = rig["cameras"]
     if (
@@ -149,8 +150,13 @@ def validate_stereo_trajectory(params):
                 "Ingress stereo cameras must have matching optics."
             )
     camera_y = left["pose"]["translation_m"][1]
-    for endpoint in ("start_position_m", "end_position_m"):
-        if trajectory[endpoint][1] <= camera_y:
+    points = (
+        trajectory["waypoints_m"]
+        if trajectory["type"] == "piecewise_linear"
+        else [trajectory["start_position_m"], trajectory["end_position_m"]]
+    )
+    for point in points:
+        if point[1] <= camera_y:
             raise ValueError(
                 "Trajectory endpoints must be in front of cameras."
             )
@@ -167,6 +173,10 @@ def run_ingress(
     params = load_scene_params(params_path or SCRIPT_DIR / "params.json")
     if "trajectory" not in params:
         raise ValueError("The ingress driver requires a trajectory section.")
+    if params["trajectory"]["type"] == "orbit":
+        raise ValueError(
+            "Use the universal render_scene.py driver for camera-rig orbit."
+        )
     if camera_spec:
         spec_path = Path(camera_spec)
         if not spec_path.is_absolute():
@@ -175,115 +185,15 @@ def run_ingress(
     params = apply_ingress_overrides(params, params_override or {})
     validate_stereo_trajectory(params)
 
-    motion = params["trajectory"]
-    start = Vector(motion["start_position_m"])
-    end = Vector(motion["end_position_m"])
-    path = LinearSegment(start, end)
-    length = (end - start).length
-    total_frames = max(1, math.ceil(length / motion["max_step_m"]) + 1)
-    step = length / (total_frames - 1) if total_frames > 1 else 0.0
-
-    scene, cameras, models = build_scene(
-        params, PROJECT_ROOT / "SynC" / "models"
+    return render_scene(
+        params,
+        output_dir or SCRIPT_DIR,
+        models_dir=PROJECT_ROOT / "SynC" / "models",
+        dry_run=dry_run,
+        prefix="ingress_stereo",
+        camera_directories=["left", "right"],
+        require_disparity=True,
     )
-    target = models[motion["object"]]
-    move_object_along_path(target, path, 0.0)
-    scene.view_layers[0].update()
-    output_dir = Path(output_dir or SCRIPT_DIR)
-    for side in ("left", "right"):
-        (output_dir / side).mkdir(parents=True, exist_ok=True)
-    bpy.ops.wm.save_as_mainfile(
-        filepath=str(output_dir / "ingress_stereo.blend")
-    )
-
-    left = params["camera_rig"]["cameras"][0]
-    camera_y = left["pose"]["translation_m"][1]
-    baseline_m = params["camera_rig"]["baseline_m"]
-    width = (
-        scene.render.resolution_x * scene.render.resolution_percentage // 100
-    )
-    height = (
-        scene.render.resolution_y * scene.render.resolution_percentage // 100
-    )
-    fx_px = left["focal_length_mm"] / left["sensor_width_mm"] * width
-    start_depth, end_depth = start.y - camera_y, end.y - camera_y
-    motion_name = (
-        "ingress"
-        if start_depth > end_depth
-        else (
-            "egress"
-            if start_depth < end_depth
-            else "stationary" if length == 0 else "translation"
-        )
-    )
-    target_config = next(
-        model
-        for model in params["models"]
-        if model["name"] == motion["object"]
-    )
-    log = {
-        "metadata": {
-            "schema_version": 1,
-            "name": params["scene"]["name"],
-            "targetModel": target_config["file"],
-            "sun": params["environment"]["sun"],
-            "scene_params": params,
-            "camera": {
-                "name": params["camera_rig"]["name"],
-                "resolution": {"width": width, "height": height},
-                "focalLengthMm": left["focal_length_mm"],
-                "sensorWidthMm": left["sensor_width_mm"],
-                "fx_pixels": round(fx_px, 2),
-                "baselineMm": baseline_m * 1000,
-            },
-            "trajectory": {
-                **motion,
-                "startDistanceMeters": start_depth,
-                "endDistanceMeters": end_depth,
-                "stepMeters": step,
-                "requestedMaxStepMeters": motion["max_step_m"],
-                "totalFrames": total_frames,
-            },
-        },
-        "frames": [],
-    }
-    print(f"{motion_name}: {total_frames} stereo pairs, max step {step:.6f}m")
-    for index in range(total_frames):
-        t = index / (total_frames - 1) if total_frames > 1 else 0.0
-        position = move_object_along_path(target, path, t)
-        depth = position.y - camera_y
-        frame = index + 1
-        stem = f"frame_{frame:04d}"
-        names = [
-            f"{side}/{stem}{scene.render.file_extension}"
-            for side in ("left", "right")
-        ]
-        log["frames"].append(
-            {
-                "frame": frame,
-                "distanceMeters": depth,
-                "positionWorldMeters": [round(value, 6) for value in position],
-                "theoreticalCenterDisparityPx": round(
-                    fx_px * baseline_m / depth, 3
-                ),
-                "leftImage": names[0],
-                "rightImage": names[1],
-            }
-        )
-        if not dry_run:
-            scene.view_layers[0].update()
-            for side, camera in zip(("left", "right"), cameras):
-                render_camera(scene, camera, output_dir / side / stem)
-        if frame == 1 or frame == total_frames or frame % 10 == 0:
-            print(
-                f"[{frame}/{total_frames}] Camera-forward depth: {depth:.3f}m"
-            )
-    with open(
-        output_dir / "ground_truth_trajectory.json", "w", encoding="utf-8"
-    ) as log_file:
-        json.dump(log, log_file, indent=2)
-    print("Sequence generation complete!")
-    return log
 
 
 def main():

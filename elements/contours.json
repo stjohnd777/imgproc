@@ -3,7 +3,7 @@
   "id": "contours",
   "name": "Contours",
   "kind": "transform",
-  "category": "filter",
+  "category": "segmentation",
   "icon": "transform",
   "summary": "External contours found from Canny edges, drawn in green over the source image.",
   "inputs": [

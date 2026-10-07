@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "ui_view",
+  "name": "UIView",
+  "kind": "sink",
+  "category": "sink",
+  "icon": "image",
+  "summary": "Opens each incoming image in an application tab in the workflow's editor group. Already-open images reuse their tab.",
+  "inputs": [{ "name": "image", "type": "image" }],
+  "outputs": [],
+  "params": {
+    "reuse_tab": { "type": "boolean", "label": "Reuse preview tab", "default": true, "description": "Update one tab per sink; disable to open separate tabs." }
+  },
+  "telemetry": [],
+  "exec": { "builtin": "ui_view" }
+}

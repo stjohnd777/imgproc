@@ -3,7 +3,7 @@
   "id": "canny",
   "name": "Canny",
   "kind": "transform",
-  "category": "filter",
+  "category": "segmentation",
   "icon": "transform",
   "summary": "Canny edge detector. Outputs a single-channel edge map.",
   "inputs": [

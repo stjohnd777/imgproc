@@ -1,5 +1,6 @@
 // Handles user actions: updates the models, then asks the view to redraw. Vision actions go through
 // a runner, which decides *how* they run (local CLI vs REST).
+import { appendLog } from './tab_console.js';
 export class Controller {
 
     constructor(model, view, runner, { sideBar, explorer, results, specs }) {
@@ -10,6 +11,26 @@ export class Controller {
         this.explorer = explorer;
         this.results = results;
         this.specs = specs;   // { cameras: SpecModel, algorithms: SpecModel }
+        this.removeConsoleListener = globalThis.window?.tabConsole?.onLog(entry => {
+            const tab = this.model.getTab(entry.tabId);
+            if (tab) {
+                appendLog(tab, entry);
+                this.scheduleConsoleRefresh(tab);
+            }
+        });
+    }
+
+    scheduleConsoleRefresh(tab) {
+        if (tab.consoleRefresh) return;
+        tab.consoleRefresh = setTimeout(() => {
+            tab.consoleRefresh = null;
+            this.view.refreshConsole?.(tab);
+        }, 100);
+    }
+
+    log(tab, label, text, stream = 'system') {
+        appendLog(tab, { label, text, stream });
+        this.scheduleConsoleRefresh(tab);
     }
 
     setRunner(runner) {
@@ -286,10 +307,34 @@ export class Controller {
         if (!tab?.graph || tab.running) return;
 
         tab.running = true;
+        this.log(tab, 'Workflow', `Starting ${tab.label}`);
         tab.activeNodeId = null;
         tab.runProgress = { text: 'starting…' };
         this.view.render();
 
+        let viewQueue = Promise.resolve();
+        let lastDisplayedFrame = 0;
+        const displayFrame = info => {
+            if (info.frame <= lastDisplayedFrame) return;
+            lastDisplayedFrame = info.frame;
+            tab.activeNodeId = null;
+            tab.latestArtifacts = Object.fromEntries(info.steps
+                .filter(step => step.nodeId)
+                .map(step => [step.nodeId, step.artifacts ?? []]));
+            const images = info.steps.filter(step => step.uiView)
+                .flatMap(step => (step.artifacts ?? []).map(artifact => ({
+                    artifact, previewKey: step.reuseTab ? `${tabId}:${step.nodeId}` : null
+                })));
+            viewQueue = viewQueue.then(async () => {
+                for (const { artifact, previewKey } of images) await this.openWorkflowArtifactInTab(tabId, artifact, previewKey);
+            });
+            this.view.highlightExecutingNode(tab.id, null);
+            tab.runProgress = {
+                text: `frame ${info.frame}/${info.frames}  ${info.ms}ms${info.late ? '  (late)' : ''}`,
+                detail: info.steps.map(step => `${step.order} ${step.name} ${step.ms}ms`).join('\n')
+            };
+            this.view.render();
+        };
         const listeners = [
             window.workflow.on('started', info => {
                 tab.runProgress = { text: `running ${info.frames} frame(s) at ${info.fps} fps`, detail: info.runDir };
@@ -299,31 +344,24 @@ export class Controller {
                 tab.activeNodeId = info.nodeId;
                 this.view.highlightExecutingNode(tab.id, info.nodeId);
             }),
-            window.workflow.on('frame', info => {
-                tab.activeNodeId = null;
-                tab.latestArtifacts = Object.fromEntries(info.steps
-                    .filter(step => step.nodeId)
-                    .map(step => [step.nodeId, step.artifacts ?? []]));
-                this.view.highlightExecutingNode(tab.id, null);
-                tab.runProgress = {
-                    text: `frame ${info.frame}/${info.frames}  ${info.ms}ms${info.late ? '  (late)' : ''}`,
-                    detail: info.steps.map(step => `${step.order} ${step.name} ${step.ms}ms`).join('\n')
-                };
-                this.view.render();
-            })
+            window.workflow.on('frame', displayFrame)
         ];
 
         let runSummary = null;
         try {
-            runSummary = await window.workflow.run({ name: tab.label, graph: tab.graph });
+            runSummary = await window.workflow.run({ name: tab.label, graph: tab.graph, logTabId: tab.id });
+            if (runSummary.lastFrame) displayFrame(runSummary.lastFrame);
+            this.log(tab, 'Workflow', `${runSummary.stopped ? 'Stopped' : 'Completed'} ${runSummary.frames} frame(s)`);
             tab.runProgress = {
                 text: `${runSummary.stopped ? 'stopped after' : 'finished'} ${runSummary.frames} frame(s)`
                     + `${runSummary.late ? `, ${runSummary.late} late` : ''}  in  ${runSummary.runDir}`,
                 detail: runSummary.runDir
             };
         } catch (err) {
+            this.log(tab, 'Workflow', err.message, 'error');
             tab.runProgress = { failed: true, text: `run failed: ${err.message}`, detail: err.message };
         } finally {
+            await viewQueue;
             tab.activeNodeId = null;
             this.view.highlightExecutingNode(tab.id, null);
             for (const remove of listeners) remove();
@@ -390,26 +428,52 @@ export class Controller {
 
     async openWorkflowArtifact(tabId, nodeId, portName) {
         const workflowTab = this.model.getTab(tabId);
-        const group = this.model.findGroupOfTab(tabId);
         const artifact = workflowTab?.latestArtifacts?.[nodeId]?.find(item => item.port === portName);
+        return this.openWorkflowArtifactInTab(tabId, artifact);
+    }
+
+    async openWorkflowArtifactInTab(tabId, artifact, previewKey = null) {
+        const group = this.model.findGroupOfTab(tabId);
         if (!artifact?.path || !group) return;
 
         try {
-            const opened = await window.workflow.openArtifact(artifact.path);
+            const opened = await window.workflow.openArtifact(artifact.path,
+                ['text', 'keypoints', 'matches'].includes(artifact.type) ? 'text' : undefined);
             if (!opened) return;
+            const preview = previewKey && group.tabs.find(tab => tab.previewKey === previewKey);
+            if (preview && opened.kind === 'image') {
+                Object.assign(preview, {
+                    label: opened.name, src: opened.url, path: opened.path,
+                    resultSrc: null, resultMeta: null, serviceError: null, activeAction: null
+                });
+                this.model.selectTab(preview.id);
+                this.view.render();
+                return;
+            }
+            if (preview && ['text', 'json'].includes(opened.kind)) {
+                Object.assign(preview, {
+                    label: opened.name, path: opened.path,
+                    content: opened.content, cleanContent: opened.content
+                });
+                this.model.selectTab(preview.id);
+                this.view.render();
+                return;
+            }
             const existing = this.model.findTabByPath(group.id, opened.path);
-            if (existing) {
+            if (existing && !previewKey) {
                 this.model.selectTab(existing.id);
             } else if (opened.kind === 'image') {
-                this.model.addTab({ label: opened.name, src: opened.url, path: opened.path }, group.id);
-            } else if (opened.kind === 'json') {
-                this.model.addTab({
+                const id = this.model.addTab({ label: opened.name, src: opened.url, path: opened.path }, group.id);
+                if (previewKey) this.model.getTab(id).previewKey = previewKey;
+            } else if (opened.kind === 'json' || opened.kind === 'text') {
+                const id = this.model.addTab({
                     label: opened.name,
                     path: opened.path,
-                    type: 'json-artifact',
+                    type: opened.kind === 'text' ? 'text-artifact' : 'json-artifact',
                     content: opened.content,
                     cleanContent: opened.content
                 }, group.id);
+                if (previewKey) this.model.getTab(id).previewKey = previewKey;
             }
             this.view.render();
         } catch (err) {
@@ -432,6 +496,8 @@ export class Controller {
     }
 
     setZoom(id, zoom) {
+        const tab = this.model.getTab(id);
+        if (tab) tab.fitImage = false;
         this.model.setZoom(id, zoom);
         this.view.render();
     }
@@ -468,6 +534,7 @@ export class Controller {
 
         this.model.selectTab(tabId);
         tab.activeAction = action;
+        this.log(tab, action, 'Operation requested');
         tab.serviceError = null;
         this.view.render();
 
@@ -475,9 +542,11 @@ export class Controller {
             const result = await this.runner.run(tab, action, params);
             tab.resultSrc = result.image;
             tab.resultMeta = result;
+            this.log(tab, action, 'Operation completed');
         } catch (err) {
             console.warn(err.message);
             tab.serviceError = err.message;
+            this.log(tab, action, err.message, 'error');
         }
 
         this.view.render();
@@ -488,10 +557,12 @@ export class Controller {
         if (!sourceTab) return;
 
         sourceTab.serviceError = null;
+        this.log(sourceTab, 'FOURIER', 'Operation requested');
         this.view.render();
 
         try {
             const result = await this.runner.run(sourceTab, 'FOURIER');
+            this.log(sourceTab, 'FOURIER', 'Operation completed');
             this.model.addTab({
                 label: `Fourier: ${sourceTab.label}`,
                 src: result.image,
@@ -502,6 +573,7 @@ export class Controller {
         } catch (err) {
             console.warn(err.message);
             sourceTab.serviceError = err.message;
+            this.log(sourceTab, 'FOURIER', err.message, 'error');
             this.view.render();
         }
     }
@@ -512,10 +584,12 @@ export class Controller {
         if (!left || !right) return;
 
         left.serviceError = null;
+        this.log(left, 'DISPARITY', 'Operation requested');
         this.view.render();
 
         try {
             const result = await this.runner.runStereo({ ...request, left, right });
+            this.log(left, 'DISPARITY', 'Operation completed');
             this.model.addTab({
                 label: `Disparity: ${left.label} / ${right.label}`,
                 src: result.image,
@@ -526,6 +600,7 @@ export class Controller {
         } catch (err) {
             console.warn(err.message);
             left.serviceError = err.message;
+            this.log(left, 'DISPARITY', err.message, 'error');
             this.view.render();
         }
     }
@@ -535,7 +610,7 @@ export class Controller {
 export class LocalRunner {
     async run(tab, action, params = {}) {
         if (!tab.path) throw new Error(`${tab.label} has no file on disk to process`);
-        return window.vision.run(action, tab.path, params);
+        return window.vision.run(action, tab.path, params, tab.id);
     }
 
     async runStereo(request) {

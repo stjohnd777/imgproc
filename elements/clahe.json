@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "clahe",
+  "name": "CLAHE",
+  "kind": "transform",
+  "category": "enhancement",
+  "icon": "transform",
+  "summary": "Local contrast enhancement. Color images use Lab luminance, not independent RGB equalization. Supports 8-bit color and 8/16-bit grayscale.",
+  "inputs": [{ "name": "image", "type": "image" }],
+  "outputs": [{ "name": "image", "type": "image" }],
+  "params": {
+    "clip_limit": { "type": "number", "label": "Clip limit", "default": 2, "min": 1e-12, "description": "Contrast limiting threshold; larger values can amplify noise." },
+    "tiles_x": { "type": "integer", "label": "Horizontal tile count", "default": 8, "min": 1, "max": 64, "step": 1 },
+    "tiles_y": { "type": "integer", "label": "Vertical tile count", "default": 8, "min": 1, "max": 64, "step": 1 }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-image-effects/build/clahe_cli",
+    "args": ["{in.image}", "{out.image}", "{param.clip_limit}", "{param.tiles_x}", "{param.tiles_y}"]
+  }
+}

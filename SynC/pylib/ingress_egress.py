@@ -82,7 +82,7 @@ class PiecewiseLinearPath:
             LinearSegment(p0, p1) for p0, p1 in zip(points, points[1:])
         )
         self.segment_lengths = tuple(
-            segment.p0.distance(segment.p1) for segment in self.segments
+            math.dist(segment.p0, segment.p1) for segment in self.segments
         )
         self.total_length = sum(self.segment_lengths)
 

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "morphology",
+  "name": "Morphology",
+  "kind": "transform",
+  "category": "segmentation",
+  "icon": "transform",
+  "summary": "Erode, dilate, open, close, or extract boundaries. Useful after Threshold. Grayscale/color 8/16-bit; alpha unchanged.",
+  "inputs": [{ "name": "image", "type": "image" }],
+  "outputs": [{ "name": "image", "type": "image" }],
+  "params": {
+    "operation": { "type": "enum", "default": "open", "values": ["erode", "dilate", "open", "close", "gradient"] },
+    "shape": { "type": "enum", "label": "Kernel shape", "default": "ellipse", "values": ["rectangle", "ellipse", "cross"] },
+    "kernel_size": { "type": "odd", "label": "Kernel size (px)", "default": 3, "min": 1, "max": 63, "step": 2 },
+    "iterations": { "type": "integer", "default": 1, "min": 1, "max": 20, "step": 1 }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-image-effects/build/morphology_cli",
+    "args": ["{in.image}", "{out.image}", "{param.operation}", "{param.shape}", "{param.kernel_size}", "{param.iterations}"]
+  }
+}

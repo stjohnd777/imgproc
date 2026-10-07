@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "scene": {
+    "name": "Cassini diagonal linear motion",
+    "units": "meters",
+    "world_frame": {
+      "name": "world",
+      "handedness": "right_handed",
+      "axes": {"x": "right", "y": "forward", "z": "up"}
+    },
+    "render": {
+      "engine": "BLENDER_EEVEE_NEXT",
+      "resolution_px": [1288, 964],
+      "resolution_percentage": 100,
+      "image_format": "PNG",
+      "color_mode": "RGB",
+      "color_depth": "8",
+      "samples": 64
+    }
+  },
+  "camera_rig": {
+    "name": "Blackfly BFLY-PGE-13S2M-CS fixed single camera",
+    "cameras": [
+      {
+        "name": "BlkFly",
+        "focal_length_mm": 12.0,
+        "sensor_width_mm": 4.83,
+        "sensor_height_mm": 3.615,
+        "sensor_fit": "HORIZONTAL",
+        "clip_start_m": 0.1,
+        "clip_end_m": 2000.0,
+        "pose": {
+          "frame": "world",
+          "translation_m": [0.0, 0.0, 0.0],
+          "rotation_euler_rad": [1.5707963267948966, 0.0, 0.0],
+          "rotation_order": "XYZ"
+        }
+      }
+    ]
+  },
+  "environment": {
+    "background": {"color_rgb": [0.0, 0.0, 0.0], "strength": 0.0},
+    "sun": {
+      "enabled": true,
+      "direction": {
+        "representation": "azimuth_elevation",
+        "frame": "world",
+        "azimuth_deg": 180.0,
+        "elevation_deg": 30.0,
+        "azimuth_zero_direction": "+Y",
+        "azimuth_increases_toward": "+X",
+        "elevation_reference_plane": "XY",
+        "vector_points": "scene_toward_sun"
+      },
+      "apparent_angular_diameter_deg": 0.533,
+      "blender_energy": 4.5,
+      "color_temperature_k": 5778.0
+    },
+    "additional_lights": [
+      {
+        "name": "Fill_Light",
+        "enabled": true,
+        "type": "SUN",
+        "blender_energy": 0.4,
+        "color_rgb": [0.6, 0.75, 1.0],
+        "rotation_euler_rad": [1.0471975511965976, -2.0943951023931953, 0.0]
+      }
+    ],
+    "earth": {"visible": false, "illumination": {"enabled": false}},
+    "moon": {"visible": false, "illumination": {"enabled": false}},
+    "stars": {"visible": false}
+  },
+  "models": [
+    {
+      "name": "cassini",
+      "file": "Cassini-Huygens (A).glb",
+      "pose": {
+        "frame": "world",
+        "translation_m": [-26.0, 100.0, 19.459627329192546],
+        "rotation_euler_rad": [0.3490658503988659, -0.6108652381980153, 0.2617993877991494],
+        "rotation_order": "XYZ"
+      }
+    }
+  ],
+  "output": {
+    "prefix": "cassini_linear_motion",
+    "camera_directories": {"BlkFly": "frames"},
+    "log_filename": "ground_truth_trajectory.json"
+  },
+  "trajectory": {
+    "type": "linear",
+    "object": "cassini",
+    "frame": "world",
+    "start_position_m": [-26.0, 100.0, 19.459627329192546],
+    "end_position_m": [26.0, 100.0, -19.459627329192546],
+    "max_step_m": 0.5
+  }
+}

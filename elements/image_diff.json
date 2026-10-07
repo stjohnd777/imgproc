@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "image_diff",
+  "name": "Image Diff",
+  "kind": "transform",
+  "category": "analysis",
+  "icon": "transform",
+  "summary": "Absolute pixel difference between img0 and img1. Dimensions, depth, and channels must match. RGBA compares RGB with opaque output alpha. Stateless: no previous-frame buffer.",
+  "inputs": [
+    { "name": "img0", "type": "image" },
+    { "name": "img1", "type": "image" }
+  ],
+  "outputs": [{ "name": "diff", "type": "image" }],
+  "params": {},
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-image-effects/build/image_diff_cli",
+    "args": ["{in.img0}", "{in.img1}", "{out.diff}"]
+  }
+}

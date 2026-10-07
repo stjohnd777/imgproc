@@ -3,7 +3,7 @@
   "id": "gaussian",
   "name": "Gaussian",
   "kind": "transform",
-  "category": "filter",
+  "category": "enhancement",
   "icon": "transform",
   "summary": "Gaussian blur. A sigma of 0 is derived from the kernel size.",
   "inputs": [

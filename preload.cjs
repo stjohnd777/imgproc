@@ -1,8 +1,15 @@
 // Preload runs with a tiny, trusted API surface; this is the ONLY way the page reaches the main process.
 const { contextBridge, ipcRenderer } = require('electron');
+contextBridge.exposeInMainWorld('tabConsole', {
+    onLog: handler => {
+        const listener = (_event, entry) => handler(entry);
+        ipcRenderer.on('console:log', listener);
+        return () => ipcRenderer.removeListener('console:log', listener);
+    }
+});
 
 contextBridge.exposeInMainWorld('vision', {
-    run: (action, imagePath, params) => ipcRenderer.invoke('vision:run', action, imagePath, params),
+    run: (action, imagePath, params, tabId) => ipcRenderer.invoke('vision:run', action, imagePath, params, tabId),
     // Parameter declarations per action, used to build the dialogs. Resolves to { action: [spec] }.
     actions: () => ipcRenderer.invoke('vision:actions'),
     // Opens a separate window plotting the image's intensity as a 3D surface.
@@ -39,13 +46,14 @@ contextBridge.exposeInMainWorld('workflow', {
     // Works out execution order and the file each step will write, without running anything.
     // Resolves to { runnable, problems, runDir, steps }.
     prepareRun: request => ipcRenderer.invoke('workflow:prepareRun', request),
-    // Runs the graph frame by frame. Resolves to { runDir, frames, late, stopped }.
+    // Resolves to { runDir, frames, late, stopped, lastFrame }; final artifacts also arrive with completion.
     run: request => ipcRenderer.invoke('workflow:run', request),
     stop: () => ipcRenderer.invoke('workflow:stop'),
     open: () => ipcRenderer.invoke('workflow:open'),
     save: (filePath, document) => ipcRenderer.invoke('workflow:save', filePath, document),
     saveAs: document => ipcRenderer.invoke('workflow:saveAs', document),
-    openArtifact: filePath => ipcRenderer.invoke('workflow:openArtifact', filePath),
+    openArtifact: (filePath, type) => ipcRenderer.invoke('workflow:openArtifact', filePath, type),
+    readScene: filePath => ipcRenderer.invoke('workflow:readScene', filePath),
     // Progress events. `on` returns a function that removes the listener.
     on: (event, handler) => {
         const allowed = ['started', 'frame', 'finished', 'failed', 'step'];

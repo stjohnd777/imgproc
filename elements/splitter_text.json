@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "splitter_text",
+  "name": "SplitterText",
+  "kind": "transform",
+  "category": "utility",
+  "icon": "transform",
+  "summary": "Passes one text artifact to two branches without changing its content. Accepts text, keypoints and matches. Optional: any output can already feed several inputs.",
+  "inputs": [
+    { "name": "text", "type": "text" }
+  ],
+  "outputs": [
+    { "name": "a", "type": "text" },
+    { "name": "b", "type": "text" }
+  ],
+  "params": {},
+  "telemetry": [],
+  "exec": { "builtin": "passthrough" }
+}

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "ui_view_text",
+  "name": "UIViewText",
+  "kind": "sink",
+  "category": "sink",
+  "icon": "file",
+  "summary": "Opens incoming text, keypoints, or matches in a read-only application tab.",
+  "inputs": [{ "name": "text", "type": "text" }],
+  "outputs": [],
+  "params": {
+    "reuse_tab": { "type": "boolean", "label": "Reuse preview tab", "default": true, "description": "Update one text tab per sink; disable to open separate tabs." }
+  },
+  "telemetry": [],
+  "exec": { "builtin": "ui_view_text" }
+}

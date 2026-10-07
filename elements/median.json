@@ -3,7 +3,7 @@
   "id": "median",
   "name": "Median",
   "kind": "transform",
-  "category": "filter",
+  "category": "enhancement",
   "icon": "transform",
   "summary": "Median blur: removes salt-and-pepper noise while keeping edges sharper than a Gaussian.",
   "inputs": [

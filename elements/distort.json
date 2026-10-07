@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "distort",
+  "name": "Distort Image",
+  "kind": "transform",
+  "category": "simulation",
+  "icon": "transform",
+  "summary": "Adds OpenCV lens distortion to an ideal image. Same-size output, bilinear sampling, black borders.",
+  "inputs": [{ "name": "image", "type": "image" }],
+  "outputs": [{ "name": "image", "type": "image" }],
+  "params": {
+    "camera": { "type": "camera", "default": null, "description": "Fill K and distortion from a camera profile. Scale fx, fy, cx, cy if image resolution differs." },
+    "fx": { "type": "number", "default": 1000, "min": 1e-12, "description": "Focal length x, pixels." },
+    "fy": { "type": "number", "default": 1000, "min": 1e-12, "description": "Focal length y, pixels." },
+    "cx": { "type": "number", "default": 0, "description": "Principal point x, pixels." },
+    "cy": { "type": "number", "default": 0, "description": "Principal point y, pixels." },
+    "k1": { "type": "number", "default": 0 },
+    "k2": { "type": "number", "default": 0 },
+    "p1": { "type": "number", "default": 0 },
+    "p2": { "type": "number", "default": 0 },
+    "k3": { "type": "number", "default": 0 }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-image-effects/build/distort_cli",
+    "args": ["{in.image}", "{out.image}", "{param.fx}", "{param.fy}", "{param.cx}", "{param.cy}", "{param.k1}", "{param.k2}", "{param.p1}", "{param.p2}", "{param.k3}"]
+  }
+}

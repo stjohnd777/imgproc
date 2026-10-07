@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "synthetic_scene_source",
+  "name": "Synthetic Scene",
+  "kind": "source",
+  "category": "source",
+  "icon": "camera",
+  "summary": "Renders a SynC scene JSON with the universal Blender renderer and emits one selected camera's images.",
+  "inputs": [],
+  "outputs": [{ "name": "image", "type": "image" }],
+  "params": {
+    "params_file": {
+      "type": "file",
+      "label": "Scene JSON",
+      "default": "SynC/scenes/Cassini-Huygens-30m-BFLY-PGE-F12mm-B120.0mm/params.json"
+    },
+    "config_json": { "type": "string", "default": null },
+    "camera_name": { "type": "string", "default": null },
+    "fps": { "type": "number", "default": 5, "min": 0.1, "max": 60 }
+  },
+  "telemetry": [],
+  "exec": { "builtin": "synthetic_scene_source" }
+}

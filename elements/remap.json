@@ -3,7 +3,7 @@
   "id": "remap",
   "name": "Remap",
   "kind": "transform",
-  "category": "stereo",
+  "category": "geometry",
   "icon": "transform",
   "summary": "Applies coordinate mapping (cv::remap) to rectify epipolar lines or correct distortion.",
   "inputs": [

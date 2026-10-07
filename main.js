@@ -1,14 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { readFile, mkdir, readdir, copyFile, writeFile, rename, unlink, stat, lstat, realpath, rm } from 'node:fs/promises';
 import { rmSync, readFileSync, mkdirSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
-
-const execFileAsync = promisify(execFile);
+import { capturePhysicalCamera } from './physical_camera.js';
+import { renderArgs } from './workflow_args.js';
+import { uiViewResult } from './ui_view.js';
+import { processTextFile } from './process_text.js';
+import { executeCli } from './cli_process.js';
+import { readSceneDocument, renderSyntheticScene } from './synthetic_scene.js';
 
 const APP_DIR = import.meta.dirname;
 const CLI_DIR = path.join(APP_DIR, 'cv-cli');
@@ -614,7 +616,7 @@ async function normalizeWorkflowGraph(rawGraph) {
                 : (paramSpec.default ?? null);
             const invalidValue = () => new Error(`Node "${rawNode.name ?? element.name}" has an invalid value for "${name}".`);
             if (value !== null) {
-                if (['folder', 'file', 'path', 'camera', 'text', 'string'].includes(paramSpec.type)) {
+                if (['folder', 'file', 'path', 'camera', 'text', 'string', 'code'].includes(paramSpec.type)) {
                     if (typeof value !== 'string') throw invalidValue();
                 } else if (paramSpec.type === 'boolean') {
                     if (typeof value !== 'boolean') throw invalidValue();
@@ -789,9 +791,13 @@ async function saveWorkflow(senderId, filePath, input) {
     return { filePath: resolved };
 }
 
-async function openWorkflowArtifact(filePath) {
+async function openWorkflowArtifact(filePath, type) {
     const resolved = path.resolve(String(filePath ?? ''));
     if (!isInAllowedFolder(resolved)) throw new Error('Artifact path is not authorized.');
+    if (type === 'text') {
+        if ((await stat(resolved)).size > 5 * 1024 * 1024) throw new Error('Text preview exceeds the 5 MB limit.');
+        return { kind: 'text', path: resolved, content: await readFile(resolved, 'utf8'), name: path.basename(resolved) };
+    }
     const extension = path.extname(resolved).toLowerCase();
     if (IMAGE_EXTENSIONS.has(extension)) {
         return { kind: 'image', path: resolved, url: pathToFileURL(resolved).href, name: path.basename(resolved) };
@@ -810,19 +816,6 @@ function resolveCli(relative) {
     return resolved;
 }
 
-// "{in.image}" / "{out.preview}" / "{param.low}" become real values; anything else is passed through.
-function renderArgs(template, { inputs, outputs, params }) {
-    return template.map(item => {
-        const match = /^\{(in|out|param)\.([\w-]+)\}$/.exec(item);
-        if (!match) return item;
-        const [, kind, key] = match;
-        const value = kind === 'in' ? inputs[key] : kind === 'out' ? outputs[key] : params[key];
-        if (value === undefined || value === null) return '';
-        if (typeof value === 'boolean') return value ? '1' : '0';
-        return String(value);
-    });
-}
-
 const IMAGE_NAME_ORDER = (a, b) => a.localeCompare(b, undefined, { numeric: true });
 
 async function listImages(directory) {
@@ -835,7 +828,7 @@ async function listImages(directory) {
 }
 
 // The frames a run will emit come from its source nodes.
-async function resolveSourceFrames(steps, elements) {
+async function resolveSourceFrames(steps, elements, runDir, log) {
     const sources = steps.filter(step => elements.get(step.elementId)?.kind === 'source');
     if (sources.length === 0) throw new Error('The workflow has no source element.');
 
@@ -843,6 +836,7 @@ async function resolveSourceFrames(steps, elements) {
     let frameCount = null;
 
     for (const step of sources) {
+        log?.({ label: step.name, stream: 'system', text: 'Preparing source\n' });
         const element = elements.get(step.elementId);
         const builtin = element.exec?.builtin;
 
@@ -859,6 +853,30 @@ async function resolveSourceFrames(steps, elements) {
             if (!file) throw new Error(`${step.name} has no image set.`);
             if (!isInAllowedFolder(file)) throw new Error(`Image not allowed: ${file}`);
             resolved.set(step.nodeId, { port: step.outputPorts[0]?.name ?? 'image', files: [file], repeat: true });
+        } else if (builtin === 'synthetic_scene_source') {
+            const { files } = await renderSyntheticScene({
+                ...step.params,
+                params_file: step.params.params_file ? expandHome(step.params.params_file) : undefined
+            }, {
+                appDir: APP_DIR, runDir, isAllowed: isInAllowedFolder,
+                render: (exe, args, options) => executeCli(exe, args, options, log, step.name),
+                blender: existsSync('/Applications/Blender.app/Contents/MacOS/Blender')
+                    ? '/Applications/Blender.app/Contents/MacOS/Blender' : 'blender'
+            });
+            resolved.set(step.nodeId, { port: 'image', files, repeat: files.length === 1 });
+            if (files.length > 1) frameCount = frameCount === null ? files.length : Math.min(frameCount, files.length);
+        } else if (builtin === 'physical_camera_source') {
+            const cliExecutable = resolveCli('cpp-usb-camera/build/usb_camera_cli');
+            const vscodeExecutable = path.join(APP_DIR, 'build', 'cpp-usb-camera', 'usb_camera_cli');
+            const { batchDir, files } = await capturePhysicalCamera(step.params ?? {}, {
+                executable: existsSync(cliExecutable) ? cliExecutable : vscodeExecutable,
+                appDir: APP_DIR,
+                timeout: TOOL_TIMEOUT_MS,
+                capture: (exe, args, options) => executeCli(exe, args, options, log, step.name)
+            });
+            allowedFolders.add(batchDir);
+            resolved.set(step.nodeId, { port: step.outputPorts[0]?.name ?? 'image', files });
+            frameCount = frameCount === null ? files.length : Math.min(frameCount, files.length);
         } else if (builtin === 'sync_camera_source' || builtin === 'sync_source') {
             const sceneFolder = step.params.scene
                 ? path.resolve(APP_DIR, expandHome(String(step.params.scene)))
@@ -892,7 +910,7 @@ async function resolveSourceFrames(steps, elements) {
                     if (step.params.sunAzimuth != null) cliArgs.push('--azimuth', String(step.params.sunAzimuth));
                     if (step.params.sunElevation != null) cliArgs.push('--elevation', String(step.params.sunElevation));
 
-                    await execFileAsync(blenderBin, cliArgs, { timeout: 300_000 });
+                    await executeCli(blenderBin, cliArgs, { timeout: 300_000, maxBuffer: 16 * 1024 * 1024 }, log, step.name);
                     filesL = await listImages(leftDir);
                     filesR = await listImages(rightDir);
                 }
@@ -921,7 +939,7 @@ async function resolveSourceFrames(steps, elements) {
 }
 
 // Runs one frame: every step in order, each reading files the previous steps wrote.
-async function runFrame({ steps, elements, sourceFrames, runDir, frame, onStepStart }) {
+async function runFrame({ steps, elements, sourceFrames, runDir, frame, onStepStart, log }) {
     const artifacts = frameArtifacts(steps, runDir, frame);
     await mkdir(path.dirname(Object.values(artifacts.get(steps[0].nodeId))[0]
         ?? path.join(runDir, 'frames', String(frame).padStart(4, '0'), 'x')), { recursive: true });
@@ -981,6 +999,18 @@ async function runFrame({ steps, elements, sourceFrames, runDir, frame, onStepSt
         }
 
         const builtin = element.exec?.builtin;
+        if (builtin === 'ui_view' || builtin === 'ui_view_text') {
+            const result = uiViewResult(step, inputs, builtin === 'ui_view_text' ? 'text' : 'image');
+            if (!isInAllowedFolder(result.output)) throw new Error('UIView image path is not authorized.');
+            if (builtin === 'ui_view' && !IMAGE_EXTENSIONS.has(path.extname(result.output).toLowerCase())) {
+                throw new Error(`${step.name} requires an image file.`);
+            }
+            if (!(await stat(result.output)).isFile()) throw new Error(`${step.name} requires a regular file.`);
+            produced.set(step.nodeId, {});
+            stepResults.push(result);
+            continue;
+        }
+
         if (builtin === 'passthrough') {
             const incoming = Object.values(inputs)[0];
             if (!incoming) throw new Error(`${step.name} has no input to pass on.`);
@@ -1013,11 +1043,17 @@ async function runFrame({ steps, elements, sourceFrames, runDir, frame, onStepSt
             continue;
         }
 
-        if (!element.exec?.cli) throw new Error(`${step.name} cannot run yet (${builtin ?? 'no exec'}).`);
-
-        const args = renderArgs(element.exec.args ?? [], { inputs, outputs, params: step.params });
-
-        await execFileAsync(resolveCli(element.exec.cli), args, { timeout: TOOL_TIMEOUT_MS });
+        if (builtin === 'process_text') {
+            if (!inputs.text || !isInAllowedFolder(inputs.text)) throw new Error(`${step.name}: JSON input path is missing or not authorized.`);
+            await processTextFile({
+                input: inputs.text, output: outputs.text, code: step.params.code,
+                log, label: `${step.name} · frame ${frame}`
+            });
+        } else {
+            if (!element.exec?.cli) throw new Error(`${step.name} cannot run yet (${builtin ?? 'no exec'}).`);
+            const args = renderArgs(element.exec.args ?? [], { inputs, outputs, params: step.params, frameIndex: frame - 1 });
+            await executeCli(resolveCli(element.exec.cli), args, { timeout: TOOL_TIMEOUT_MS }, log, `${step.name} · frame ${frame}`);
+        }
 
         produced.set(step.nodeId, outputs);
         stepResults.push({
@@ -1040,14 +1076,15 @@ async function runFrame({ steps, elements, sourceFrames, runDir, frame, onStepSt
 // One run at a time; the page can stop it.
 let activeRun = null;
 
-async function runWorkflow(sender, { name, graph, maxFrames } = {}) {
+async function runWorkflow(sender, { name, graph, maxFrames, logTabId } = {}) {
     if (activeRun) throw new Error('A workflow is already running.');
 
     const plan = await prepareWorkflowRun({ name, graph });
     if (!plan.runnable) throw new Error(plan.problems.join(' '));
 
     const elements = await loadElements();
-    const { sources, frameCount } = await resolveSourceFrames(plan.steps, elements);
+    const log = entry => { if (!sender.isDestroyed()) sender.send('console:log', { tabId: logTabId, ...entry }); };
+    const { sources, frameCount } = await resolveSourceFrames(plan.steps, elements, plan.runDir, log);
 
     // Frame rate comes from the directory source; it is what stands in for a camera.
     const fpsStep = plan.steps.find(step => sources.get(step.nodeId) && step.params.fps);
@@ -1056,7 +1093,7 @@ async function runWorkflow(sender, { name, graph, maxFrames } = {}) {
     const looping = plan.steps.some(step => sources.get(step.nodeId) && step.params.loop);
     const limit = Math.max(1, Math.min(Number(maxFrames) || frameCount, looping ? Number(maxFrames) || frameCount : frameCount));
 
-    const run = { stopped: false, frame: 0, late: 0, runDir: plan.runDir };
+    const run = { stopped: false, frame: 0, late: 0, runDir: plan.runDir, lastFrame: null };
     activeRun = run;
     const post = (channel, payload) => { if (!sender.isDestroyed()) sender.send(channel, payload); };
     post('workflow:started', { runDir: plan.runDir, frames: limit, fps, steps: plan.steps.map(s => s.name) });
@@ -1071,7 +1108,9 @@ async function runWorkflow(sender, { name, graph, maxFrames } = {}) {
                 sourceFrames: sources,
                 runDir: plan.runDir,
                 frame,
+                log,
                 onStepStart: (nodeId, stepName) => {
+                    log({ label: stepName, stream: 'system', text: `Executing frame ${frame}\n` });
                     post('workflow:step', { frame, nodeId, stepName });
                 }
             });
@@ -1080,9 +1119,10 @@ async function runWorkflow(sender, { name, graph, maxFrames } = {}) {
             if (elapsed > interval) run.late += 1;
 
             post('workflow:step', { frame, nodeId: null });
-            post('workflow:frame', {
+            run.lastFrame = {
                 frame, frames: limit, ms: Math.round(elapsed), late: elapsed > interval, steps: stepResults
-            });
+            };
+            post('workflow:frame', run.lastFrame);
 
             // Wait for the rest of the frame's time slot, rather than starting the next frame on a
             // timer that could overlap this one.
@@ -1091,7 +1131,10 @@ async function runWorkflow(sender, { name, graph, maxFrames } = {}) {
                 await new Promise(resolve => setTimeout(resolve, remaining));
             }
         }
-        const summary = { runDir: plan.runDir, frames: run.frame, late: run.late, stopped: run.stopped };
+        const summary = {
+            runDir: plan.runDir, frames: run.frame, late: run.late,
+            stopped: run.stopped, lastFrame: run.lastFrame
+        };
         post('workflow:finished', summary);
         return summary;
     } catch (err) {
@@ -1189,7 +1232,7 @@ async function saveSpec(kind, file, content) {
     return { success: true, path: filePath, file: safeFile };
 }
 
-async function runVisionCli(action, imagePath, params = {}) {
+async function runVisionCli(action, imagePath, params = {}, log = () => {}) {
     const cli = CLI_ACTIONS[action];
     if (!cli) throw new Error(`Unknown action: ${action}`);
 
@@ -1208,7 +1251,7 @@ async function runVisionCli(action, imagePath, params = {}) {
     // execFile (no shell) so the path is passed as a plain argument, never interpreted as a command.
     const keypointsPath = cli.keypoints ? outputPath.replace(/\.png$/, '.keypoints.json') : null;
     const actionArgs = [...(keypointsPath ? [keypointsPath] : []), ...buildArgs(cli, params)];
-    await execFileAsync(path.join(CLI_DIR, cli.exe), [inputPath, outputPath, ...actionArgs], { timeout: TOOL_TIMEOUT_MS });
+    await executeCli(path.join(CLI_DIR, cli.exe), [inputPath, outputPath, ...actionArgs], { timeout: TOOL_TIMEOUT_MS }, log, action);
     const timingMs = Math.round(performance.now() - started);
 
     const bytes = await readFile(outputPath);
@@ -1290,7 +1333,10 @@ function createWindow () {
 
 app.whenReady().then(() => {
 
-    ipcMain.handle('vision:run', (_event, action, imagePath, params) => runVisionCli(action, imagePath, params));
+    ipcMain.handle('vision:run', (event, action, imagePath, params, tabId) =>
+        runVisionCli(action, imagePath, params, entry => {
+            if (!event.sender.isDestroyed()) event.sender.send('console:log', { tabId, ...entry });
+        }));
     ipcMain.handle('vision:actions', () => listActions());
     ipcMain.handle('explorer:openFolder', event => openFolder(BrowserWindow.fromWebContents(event.sender)));
     ipcMain.handle('explorer:chooseFolder', (event, options) =>
@@ -1309,7 +1355,13 @@ app.whenReady().then(() => {
     ipcMain.handle('workflow:save', (event, filePath, document) => saveWorkflow(event.sender.id, filePath, document));
     ipcMain.handle('workflow:saveAs', (event, document) =>
         saveWorkflowAs(BrowserWindow.fromWebContents(event.sender), event.sender.id, document));
-    ipcMain.handle('workflow:openArtifact', (_event, filePath) => openWorkflowArtifact(filePath));
+    ipcMain.handle('workflow:openArtifact', (_event, filePath, type) => openWorkflowArtifact(filePath, type));
+    ipcMain.handle('workflow:readScene', async (_event, filename) => {
+        if (typeof filename !== 'string') throw new Error('Scene JSON path is required.');
+        const resolved = path.resolve(APP_DIR, expandHome(filename));
+        if (!isInAllowedFolder(resolved)) throw new Error('Scene JSON path is not authorized. Choose the file again.');
+        return readSceneDocument(resolved);
+    });
     ipcMain.handle('surface:open', (event, imagePath) =>
         openSurfaceWindow(BrowserWindow.fromWebContents(event.sender), imagePath));
     ipcMain.handle('surface:payload', event => surfacePayloads.get(event.sender.id) ?? null);

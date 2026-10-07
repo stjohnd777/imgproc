@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "/Users/danielst.johnst.john/development/electron/hello-world/cpp-lib"
+    "cmake.sourceDirectory": "${workspaceFolder}/cv-cli/cpp-usb-camera",
+    "cmake.buildDirectory": "${workspaceFolder}/build/cpp-usb-camera"
 }

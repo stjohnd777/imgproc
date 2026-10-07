@@ -3,7 +3,7 @@
   "id": "threshold",
   "name": "Threshold",
   "kind": "transform",
-  "category": "filter",
+  "category": "segmentation",
   "icon": "transform",
   "summary": "Range threshold: pixels outside [low, high] become black. Pixels inside keep their colour, or become a flat value when setBandValue is on.",
   "inputs": [

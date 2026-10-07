@@ -3,7 +3,7 @@
   "id": "sobel",
   "name": "Sobel",
   "kind": "transform",
-  "category": "filter",
+  "category": "segmentation",
   "icon": "transform",
   "summary": "Sobel edge gradient in x, y or both.",
   "inputs": [

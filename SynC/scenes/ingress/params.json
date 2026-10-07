@@ -93,6 +93,14 @@
       }
     }
   ],
+  "output": {
+    "prefix": "ingress_stereo",
+    "camera_directories": {
+      "Camera_Left": "left",
+      "Camera_Right": "right"
+    },
+    "log_filename": "ground_truth_trajectory.json"
+  },
   "trajectory": {
     "type": "linear",
     "object": "cassini",

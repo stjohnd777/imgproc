@@ -66,11 +66,33 @@
         }
 
         .palette-heading {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            border: 0;
+            background: transparent;
+            text-align: left;
+            cursor: pointer;
             padding: 8px 12px 4px;
             color: #bbb;
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+        }
+
+        .palette-heading:hover {
+            background: #333;
+        }
+
+        .palette-heading:focus-visible {
+            outline: 2px solid #007acc;
+            outline-offset: -2px;
+        }
+
+        .palette-twisty {
+            width: 10px;
+            flex-shrink: 0;
         }
 
         .palette-list {
@@ -124,6 +146,26 @@
             position: relative;
             background-image: radial-gradient(circle, #3a3a3a 1px, transparent 1px);
             background-size: 20px 20px;
+        }
+
+        .tab-console { flex: 0 0 auto; min-height: 0; background: #181818; border-top: 1px solid #444; }
+        .console-header { display: flex; align-items: center; gap: 8px; padding: 4px 8px; font-size: 12px; }
+        .console-header button { background: #333; color: #ddd; border: 1px solid #555; cursor: pointer; }
+        .console-header label { display: flex; align-items: center; gap: 4px; }
+        .console-divider { height: 5px; cursor: ns-resize; background: #333; }
+        .console-output { display: block; box-sizing: border-box; width: 100%; resize: none; border: 0;
+            background: #181818; color: #ddd; padding: 8px; font: 12px/1.5 monospace; white-space: pre; overflow: auto; }
+        .console-output[hidden], .console-divider[hidden] { display: none; }
+
+        .workflow-node-summary {
+            max-width: 240px;
+            padding: 5px 10px;
+            border-top: 1px solid #3a3a3a;
+            color: #aaa;
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .workflow-empty {
@@ -1051,6 +1093,20 @@
             border: 1px solid #555;
             background: #1e1e1e;
             color: #fff;
+        }
+
+        .workflow-code-editor {
+            width: 100%;
+            min-width: 0;
+            resize: vertical;
+            font-family: monospace;
+            white-space: pre;
+            tab-size: 2;
+        }
+
+        .form-row:has(.workflow-code-editor) {
+            flex-direction: column;
+            align-items: stretch;
         }
 
         .form-row input[readonly] {

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "add_noise",
+  "name": "Add Noise",
+  "kind": "transform",
+  "category": "simulation",
+  "icon": "transform",
+  "summary": "Adds independent zero-mean Gaussian intensity noise, reproducible by seed and workflow frame index. Alpha is unchanged.",
+  "inputs": [{ "name": "image", "type": "image" }],
+  "outputs": [{ "name": "image", "type": "image" }],
+  "params": {
+    "sigma": { "type": "number", "default": 5, "min": 0, "description": "Standard deviation in 0-255 intensity levels; scaled for 16-bit input. Zero disables noise." },
+    "seed": { "type": "integer", "default": 0, "min": 0, "max": 2147483647, "step": 1, "description": "Same seed and frame index reproduce noise. Different frames get different patterns. Use different seeds on stereo branches." }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-image-effects/build/add_noise_cli",
+    "args": ["{in.image}", "{out.image}", "{param.sigma}", "{param.seed}", "{frame.index}"]
+  }
+}

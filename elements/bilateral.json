@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bilateral",
+  "name": "Bilateral Filter",
+  "kind": "transform",
+  "category": "enhancement",
+  "icon": "transform",
+  "summary": "Edge-preserving smoothing for 8/16-bit grayscale or color images. Alpha is unchanged.",
+  "inputs": [{ "name": "image", "type": "image" }],
+  "outputs": [{ "name": "image", "type": "image" }],
+  "params": {
+    "diameter": { "type": "odd", "label": "Neighborhood diameter (px)", "default": 9, "min": 1, "max": 31, "step": 2 },
+    "sigma_color": { "type": "number", "label": "Color sigma", "default": 25, "min": 1e-12, "description": "Intensity tolerance in 8-bit-equivalent levels; multiplied by 257 for 16-bit images." },
+    "sigma_space": { "type": "number", "label": "Spatial sigma (px)", "default": 5, "min": 1e-12 }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-image-effects/build/bilateral_cli",
+    "args": ["{in.image}", "{out.image}", "{param.diameter}", "{param.sigma_color}", "{param.sigma_space}"]
+  }
+}

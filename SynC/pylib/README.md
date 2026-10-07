@@ -1,5 +1,9 @@
 # Shared SynC scene configuration and setup
 
+For scene commands, outputs, and workflow integration, start with the
+[SynC scene guide](../README.md). This document is the detailed schema and
+library reference.
+
 Static stereo and ingress use one schema (`schema_version: 1`):
 
 - `scene_config.py`: JSON loading, supported-field validation, and application
@@ -7,9 +11,13 @@ Static stereo and ingress use one schema (`schema_version: 1`):
 - `scene_setup.py`: Blender render/environment setup, hierarchy-preserving
   model import, physical camera creation, and single-camera rendering.
 - `ingress_egress.py`: spatial trajectory primitives and object movement.
+- `render_scene.py`: universal rendering, trajectory sampling, and metadata.
+- `orbit.py`: rigid camera-rig circular motion with optional target tracking.
 
-The drivers decide whether to render a static pair or sample a trajectory.
-Scene setup does not execute motion.
+The universal renderer uses JSON to choose static views or sampled motion;
+scene-local scripts provide compatibility entry points. Scene setup itself
+does not execute motion. See the
+[universal-renderer guide](../README.md#universal-renderer) for CLI examples.
 
 ## Schema v1
 
@@ -29,7 +37,11 @@ and [ingress defaults](../scenes/ingress/params.json).
 | `sun` | `enabled`; when enabled, `direction`, `apparent_angular_diameter_deg`, `blender_energy`, `color_temperature_k` |
 | Additional lights | `name`, optional `enabled`, `type: "SUN"`, `blender_energy`, `rotation_euler_rad`, optional `color_rgb` |
 | `models` | Nonempty array of unique `name`, `file`, `pose` entries |
-| `trajectory` | Optional; `type: "linear"`, model `object`, `frame: "world"`, `start_position_m`, `end_position_m`, positive `max_step_m` |
+| `trajectory` | Optional; `type: "linear"`, `"piecewise_linear"`, or `"orbit"`, `frame: "world"`, positive `max_step_m`; model paths use `object`, orbit uses model `target` |
+| Linear trajectory | `start_position_m`, `end_position_m` |
+| Piecewise trajectory | `waypoints_m` (at least two positions) |
+| Orbit trajectory | Model `target`; optional `radius_m` (initial rig-to-target distance), `axis_world` (default `[0, 0, 1]`), `start_angle_deg` (0), `sweep_angle_deg` (360), `track_target` (true) |
+| `output` | Optional `prefix` (default `scene`), `camera_directories` (camera-name to folder-name mapping for motion), `log_filename` (default `render_manifest.json` for static or `ground_truth_trajectory.json` for motion) |
 
 Every pose has `frame: "world"`, three-element `translation_m` and
 `rotation_euler_rad`, and optional `rotation_order` (default `XYZ`).
@@ -54,9 +66,64 @@ EEVEE identifier aliases are substituted with a printed notice.
 
 Enabled Earth/Moon visibility or illumination, visible stars, unsupported
 coordinate conventions, and unsupported trajectory types fail explicitly.
-An orbit type can be added to trajectory validation and path construction
-later without changing the common camera/model/environment sections.
 Spatial sampling currently has no timestamps, velocity, or exposure model.
+
+`render_scene(params, output_dir, ...)` returns the metadata/frame log.
+It renders each camera once without a trajectory, or each camera at each
+trajectory sample. Linear samples are evenly spaced. Piecewise sampling
+retains every corner and subdivides each nonzero segment independently;
+frame `stepMeters` is the planned preceding path step and metadata
+`trajectory.stepMeters` is the largest planned step. Coordinate precision
+is limited by Blender's mathutils vectors.
+
+For model paths, camera poses and model orientation stay fixed. For orbit,
+the target pose stays fixed and the camera rig moves. The Sun stays fixed
+in both cases. Output
+paths use single filename components, and case-insensitive camera-folder
+collisions are rejected. Compatibility wrappers can supply legacy output
+names and require rectified disparity logging without constraining the
+universal renderer's general camera support.
+
+Frame logs contain `images` (camera name to relative path),
+`cameraToWorld`, and `modelToWorld` matrices in Blender axes. A dry-run log
+has `metadata.dry_run: true` and planned image paths. Eligible stereo runs
+also log camera-forward depth and theoretical model-origin disparity.
+Invalid disparity geometry is identified explicitly, not represented as a
+fabricated disparity. Two motion folders named `left` and `right` also emit
+the existing `leftImage` and `rightImage` fields.
+
+## Camera-rig orbit API
+
+`CameraRigOrbit(cameras, target_matrix, *, radius_m=None,
+axis_world=(0, 0, 1), start_angle_deg=0, sweep_angle_deg=360,
+track_target=True)` captures the cameras' world transforms once.
+`position_at(t)` and `matrix_at(t)` are read-only calculations;
+`apply(t)` moves every camera and returns the rig's world matrix.
+Update the Blender view layer after applying a sample, as the universal
+renderer does.
+
+The virtual rig's origin is the camera-position centroid, and the first
+camera's world rotation defines its initial orientation. Camera transforms
+relative to that frame are preserved. The target transform's translation
+defines a fixed center; later target movement is not automatically followed.
+This moves configured cameras, not a vehicle object.
+
+The orbit normal is normalized; the initial target-to-rig direction must
+lie in its plane. Radius must be positive, cameras must be distinct, and
+camera constraints or cameras parenting one another are unsupported.
+Positive angles use the right-hand rule about the normal. Tracking points
+rig local `-Z` at the target with local `+Y` along the orbit normal,
+avoiding individual-camera toe-in. Disabling tracking retains the initial
+world orientation. `t` is normalized angular progress, not simulation time.
+
+Orbit sampling divides the swept arc into steps no greater than `max_step_m`,
+including the endpoints; full-circle final poses repeat the starting pose.
+Logs add `rigToWorld` and `rigCenterWorldMeters`; `positionWorldMeters` is
+the rig center. Effective radius, axis, tracking, and total arc length are
+recorded in trajectory metadata. World-Y ingress disparity is explicitly
+unavailable for orbit; consumers can derive rig-frame geometry from logged
+transforms. Stereo baseline and relative orientations remain rigid even
+though their world directions change around the orbit.
 
 ## Validation
 
