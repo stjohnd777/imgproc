@@ -48,6 +48,14 @@ For each detected feature $(u_L, v_L)$:
    $$R(x, y) = \frac{\sum_{x',y'} (T'(x',y') \cdot I'(x+x', y+y'))}{\sqrt{\sum_{x',y'} T'(x',y')^2 \cdot \sum_{x',y'} I'(x+x', y+y')^2}}$$
 4. The candidate with maximum correlation score $R_{\text{max}} \ge \text{minCorrelation}$ is accepted as the matching point $(u_R, v_R)$.
 
+Matching is integer-pixel only: input keypoint coordinates are rounded to the
+nearest pixel before extracting the left patch. Reported left/right match
+coordinates, disparity, preview markers, and triangulation all use the actual
+integer patch centers consistently. `leftId` retains the link to the original
+detector keypoint. Fractional detector coordinates do not provide subpixel
+disparity precision. Identical-image matches have zero disparity and null 3D
+coordinates; they are excluded from the point cloud and position estimate.
+
 ---
 
 ## 3. Triangulation (2D Disparity to 3D Metric Space)

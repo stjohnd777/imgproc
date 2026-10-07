@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "vconcat",
+  "name": "Vertical Concat",
+  "kind": "transform",
+  "category": "utility",
+  "icon": "transform",
+  "summary": "Join img0 (top) and img1 (bottom). Widths, bit depth, and channel count must match. No resizing or conversion.",
+  "inputs": [
+    { "name": "img0", "type": "image" },
+    { "name": "img1", "type": "image" }
+  ],
+  "outputs": [{ "name": "image", "type": "image" }],
+  "params": {},
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-image-effects/build/vconcat_cli",
+    "args": ["{in.img0}", "{in.img1}", "{out.image}"]
+  }
+}

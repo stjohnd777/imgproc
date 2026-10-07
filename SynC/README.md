@@ -649,6 +649,14 @@ Use it to branch a detector's JSON into separate Process Text computations or
 viewers. Like the image Splitter, it is optional: one output can already feed
 multiple inputs directly.
 
+**Horizontal Concat** and **Vertical Concat** under **Utilities** combine two
+images (`img0`, `img1`) into one `image` output. Horizontal places img0 left,
+img1 right and requires equal heights. Vertical places img0 above img1 and
+requires equal widths. Both require matching depth and channel count and
+preserve pixels/alpha without automatic resizing or conversion. They support
+8/16-bit grayscale, RGB, and RGBA. Chain nodes for larger layouts, or connect
+the result to UIView to inspect camera images side by side.
+
 **Process Text** under **Utilities** is a built-in JavaScript JSON transform,
 not a CLI. Connect a detector's `keypoints` output (or another JSON-bearing
 `text`/`matches` output) to its `text` input. In the parameter dialog, edit or

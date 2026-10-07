@@ -416,11 +416,11 @@ int main(int argc, char* argv[]) {
         if (bestCorr >= static_cast<float>(minCorr) && bestUr >= 0.0f) {
             StereoMatch m;
             m.leftId = kp.id;
-            m.ul = kp.u;
-            m.vl = kp.v;
+            m.ul = static_cast<float>(ul_int);
+            m.vl = static_cast<float>(vl_int);
             m.ur = bestUr;
             m.vr = bestVr;
-            m.disparity = kp.u - bestUr;
+            m.disparity = m.ul - m.ur;
             m.score = bestCorr;
 
             if (m.disparity > 0.001f && fx > 0.0f && baseline > 0.0f) {

@@ -18,7 +18,7 @@ const expected = {
     stereo: ['disparity', 'simple_stereo'],
     analysis: ['histogram', 'fourier', 'image_diff'],
     simulation: ['add_noise', 'distort'],
-    utility: ['convert', 'splitter', 'splitter_text', 'process_text'],
+    utility: ['convert', 'splitter', 'splitter_text', 'process_text', 'hconcat', 'vconcat'],
     sink: ['ui_view', 'ui_view_text', 'image_dir_sink', 'text_dir_sink', 'pointcloud_dir_sink']
 };
 

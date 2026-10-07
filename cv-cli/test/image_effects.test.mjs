@@ -100,6 +100,65 @@ function run(tool, args, success = true) {
     return result;
 }
 
+test('concatenation workflows preserve exact pixels, depth, channels and input order with unequal sizes', t => {
+    const dir = fixture(t);
+    const img0 = path.join(dir, 'img0.png'), img1 = path.join(dir, 'img1.png');
+    const output = path.join(dir, 'joined.png');
+    for (const tool of ['hconcat', 'vconcat']) {
+        const element = JSON.parse(readFileSync(path.join(root, `elements/${tool}.json`)));
+        assert.equal(element.kind, 'transform');
+        assert.equal(element.category, 'utility');
+        assert.deepEqual(element.inputs, [{ name: 'img0', type: 'image' }, { name: 'img1', type: 'image' }]);
+        assert.deepEqual(element.outputs, [{ name: 'image', type: 'image' }]);
+        assert.deepEqual(element.params, {});
+        const horizontal = tool === 'hconcat';
+        for (const depth of [8, 16]) {
+            for (const channels of [1, 3, 4]) {
+                const width0 = 2, height0 = 2;
+                const width1 = horizontal ? 3 : 2, height1 = horizontal ? 2 : 3;
+                const scale = depth === 16 ? 257 : 1;
+                const a = Array.from({ length: width0 * height0 * channels }, (_, i) => (i * 7 % 256) * scale);
+                const b = Array.from({ length: width1 * height1 * channels }, (_, i) => (255 - i * 3 % 256) * scale);
+                writePng(img0, width0, height0, channels, depth, a);
+                writePng(img1, width1, height1, channels, depth, b);
+                const args = renderArgs(element.exec.args, {
+                    inputs: { img0, img1 }, outputs: { image: output }, params: {}
+                });
+                assert.deepEqual(args, [img0, img1, output]);
+                run(tool, args);
+                const expected = horizontal
+                    ? Array.from({ length: height0 }, (_, y) => [
+                        ...a.slice(y * width0 * channels, (y + 1) * width0 * channels),
+                        ...b.slice(y * width1 * channels, (y + 1) * width1 * channels)
+                    ]).flat()
+                    : [...a, ...b];
+                assert.deepEqual(readPng(output), {
+                    width: horizontal ? width0 + width1 : width0,
+                    height: horizontal ? height0 : height0 + height1,
+                    channels, depth, values: expected
+                });
+            }
+        }
+    }
+});
+
+test('concatenation reports incompatible sizes/types and CLI I/O errors', t => {
+    const dir = fixture(t);
+    const a = path.join(dir, 'a.png'), b = path.join(dir, 'b.png'), output = path.join(dir, 'out.png');
+    writePng(a, 2, 2, 1, 8, [1, 2, 3, 4]);
+    for (const tool of ['hconcat', 'vconcat']) {
+        writePng(b, 3, 3, 1, 8, Array(9).fill(0));
+        assert.match(run(tool, [a, b, output], false).stderr, tool === 'hconcat' ? /heights/ : /widths/);
+        for (const [channels, depth] of [[3, 8], [1, 16]]) {
+            writePng(b, 2, 2, channels, depth, Array(4 * channels).fill(0));
+            assert.match(run(tool, [a, b, output], false).stderr, /depth and channel/);
+        }
+        assert.match(run(tool, [], false).stderr, /Usage/);
+        assert.match(run(tool, [path.join(dir, 'missing.png'), a, output], false).stderr, /load input/);
+        assert.match(run(tool, [a, a, path.join(dir, 'missing', 'out.png')], false).stderr, /write output/);
+    }
+});
+
 test('Image Diff workflow compares two inputs and produces exact symmetric differences', t => {
     const dir = fixture(t);
     const img0 = path.join(dir, 'img0.png'), img1 = path.join(dir, 'img1.png');

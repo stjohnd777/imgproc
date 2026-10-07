@@ -1,13 +1,35 @@
 # Image simulation effects
 
-The **Distort Image**, **Add Noise**, **Bilateral Filter**, **CLAHE**, and
-**Morphology**, and **Image Diff** workflow elements use this project.
-The simulation effects and filters accept one image; Image Diff accepts two.
-All produce an image of the same dimensions and depth as their input.
+The **Distort Image**, **Add Noise**, **Bilateral Filter**, **CLAHE**,
+**Morphology**, **Image Diff**, **Horizontal Concat**, and **Vertical Concat**
+workflow elements use this project.
+The simulation effects and filters accept one image; Image Diff and the
+concatenation tools accept two. All preserve input depth; only concatenation
+changes the image dimensions.
 Supported inputs: unsigned 8-bit/16-bit grayscale, RGB, and RGBA, except
 CLAHE requires 8-bit for color. Use PNG
 workflow outputs to avoid lossy compression and preserve depth.
 Alpha is preserved by the filters and Add Noise; Image Diff emits opaque alpha.
+Concatenation preserves every channel, including alpha.
+
+## Image concatenation
+
+```text
+hconcat_cli img0.png img1.png output.png
+vconcat_cli img0.png img1.png output.png
+```
+
+**Horizontal Concat** and **Vertical Concat** appear under **Utilities**.
+Both accept `img0`, `img1` and produce `image`, using `cv::hconcat` and
+`cv::vconcat` respectively. Horizontal places img0 on the left and img1 on the
+right: heights must match, but widths may differ. Vertical places img0 on top
+and img1 below: widths must match, but heights may differ.
+
+Both inputs must have matching bit depth and channel count. Unsigned 8/16-bit
+grayscale, RGB, and RGBA are supported. Pixels and alpha are copied exactly,
+without resizing, padding, normalization, or color conversion. Incompatible
+inputs fail with an explicit error. Connect `image` to UIView or another image
+transform. Chain concatenation nodes to assemble more than two images.
 
 Build this project with the existing build helper's `image-effects` selector.
 It produces each element's `build/*_cli` executable in this directory;
