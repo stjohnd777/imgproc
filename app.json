@@ -1,4 +1,6 @@
 {
   "resultsDir": "~/data/workflows",
-  "toolTimeoutMs": 60000
+  "toolTimeoutMs": 60000,
+  "modelsDir": "SynC/models",
+  "scenesDir": "~/data/workflows/scenes"
 }

@@ -1,0 +1,42 @@
+.scene-composer-host { display: flex; flex: 1; min-height: 0; min-width: 0; }
+.scene-composer { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; color: #d4d4d4; }
+.scene-composer-toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; border-bottom: 1px solid #444; }
+.scene-composer button { background: #30343c; color: #ddd; border: 1px solid #555; border-radius: 3px; padding: 5px 7px; cursor: pointer; }
+.scene-composer button:hover, .scene-composer button.selected { background: #174a6c; }
+.scene-composer-body { display: grid; grid-template-columns: 210px minmax(160px, 1fr) 8px var(--scene-inspector-width, 380px); flex: 1; min-height: 0; }
+.scene-composer-palette, .scene-composer-inspector { overflow: auto; padding: 8px; background: #202329; font-size: 12px; }
+.scene-composer-palette { border-right: 1px solid #444; }
+.scene-composer-inspector { border-left: 1px solid #444; }
+.scene-composer-divider { position: relative; cursor: col-resize; touch-action: none; background: #30343c; z-index: 2; }
+.scene-composer-divider::after { content: ""; position: absolute; inset: 0 3px; background: #555; }
+.scene-composer-divider:hover, .scene-composer-divider:focus-visible, .scene-composer-divider:active { background: #176b9b; outline: none; }
+.scene-composer-divider:hover::after, .scene-composer-divider:focus-visible::after { background: #71bde7; }
+.scene-composer.resizing-pane, .scene-composer.resizing-pane * { user-select: none; cursor: col-resize !important; }
+.scene-composer h3 { margin: 12px 0 6px; font-size: 13px; }
+.scene-composer h4 { margin: 10px 0 6px; }
+.scene-composer-palette > button, .scene-object-tree button { display: block; width: 100%; text-align: left; margin-bottom: 4px; overflow-wrap: anywhere; }
+.scene-asset { display: flex; gap: 4px; margin-bottom: 4px; }
+.scene-asset button:first-child { flex: 1; min-width: 0; text-align: left; overflow-wrap: anywhere; }
+.scene-folder { color: #aaa; font-size: 11px; overflow-wrap: anywhere; }
+.scene-composer select { width: 100%; background: #30343c; color: #ddd; margin-bottom: 6px; }
+.scene-composer-center { position: relative; display: flex; min-width: 0; min-height: 0; }
+.scene-composer-viewport { flex: 1; min-width: 0; min-height: 0; position: relative; overflow: hidden; }
+.scene-composer-viewport canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.scene-field { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin: 5px 0; }
+.scene-field input { width: 110px; min-width: 0; background: #181b20; color: #ddd; border: 1px solid #555; padding: 4px; }
+.scene-field input[type="checkbox"] { width: auto; }
+.scene-matrix, .scene-json { width: 100%; box-sizing: border-box; background: #15181e; color: #d4d4d4; font: 12px/1.35 monospace; resize: vertical; white-space: pre; }
+.scene-matrix { min-height: 190px; }
+.scene-composer details { margin-top: 14px; }
+.scene-composer summary { cursor: pointer; margin-bottom: 6px; }
+.scene-composer-status { min-height: 28px; padding: 5px 8px; font-size: 11px; background: #202329; border-top: 1px solid #444; overflow-wrap: anywhere; }
+.scene-composer .error { color: #ff9292; }
+.scene-render-preview { position: absolute; inset: 12px; padding: 10px; background: #16191f; overflow: auto; border: 1px solid #6484a2; z-index: 5; }
+.scene-render-preview img { display: block; max-width: 100%; max-height: 80%; object-fit: contain; }
+.scene-render-preview p { font-size: 11px; overflow-wrap: anywhere; }
+.scene-save-backdrop { position: absolute; inset: 0; background: #0009; display: grid; place-items: center; z-index: 10; }
+.scene-save-dialog { padding: 20px; max-width: 90%; background: #252932; border: 1px solid #6484a2; }
+@media (max-width: 1050px) {
+    .scene-composer-body { grid-template-columns: 165px minmax(140px, 1fr) 8px var(--scene-inspector-width, 340px); }
+    .scene-field input { width: 85px; }
+}

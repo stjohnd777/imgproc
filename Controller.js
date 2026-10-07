@@ -39,6 +39,7 @@ export class Controller {
 
     async toggleSideBarView(viewName) {
         this.sideBar.toggle(viewName);
+        if (this.sideBar.activeView === 'scenes') this.openSceneComposer(false);
         if (this.sideBar.activeView === 'elements' && !this.model.getAllTabs().some(tab => tab.type === 'workflow')) {
             this.model.addWorkflowTab();
         }
@@ -50,6 +51,17 @@ export class Controller {
         }
         // Results change on disk between visits, so they are read each time the view opens.
         if (this.sideBar.activeView === 'results') await this.reloadResults();
+    }
+
+    openSceneComposer(render = true) {
+        let tab = this.model.getAllTabs().find(item => item.type === 'scene-composer');
+        if (tab) this.model.selectTab(tab.id);
+        else {
+            const id = this.model.addTab({ label: 'Scene Composer', type: 'scene-composer', path: null });
+            tab = this.model.getTab(id);
+        }
+        if (render) this.view.render();
+        return tab;
     }
 
     async reloadResults() {
@@ -491,6 +503,8 @@ export class Controller {
     }
 
     closeTab(id) {
+        const tab = this.model.getTab(id);
+        if (tab?.type === 'scene-composer' && tab.dirty && !window.confirm('Close Scene Composer and discard unsaved changes?')) return;
         this.model.closeTab(id);
         this.view.render();
     }

@@ -181,6 +181,8 @@ export class View {
     }
 
     render() {
+        for (const composer of this.composerViews ?? []) composer.dispose();
+        this.composerViews = [];
         this.closeResultFolderMenu();
         this.renderSideBar();
 
@@ -207,6 +209,18 @@ export class View {
         if (activeView === 'explorer') this.renderExplorer();
         else if (activeView === 'results') this.renderResults();
         else if (activeView === 'elements') this.renderElementPalette();
+        else if (activeView === 'scenes') {
+            this.buildSideBarHeader('Scene Composer');
+            const button = document.createElement('button');
+            button.className = 'open-folder-btn';
+            button.textContent = 'Open Scene Composer';
+            button.addEventListener('click', () => this.controller.openSceneComposer());
+            this.sideBar.appendChild(button);
+            const help = document.createElement('p');
+            help.className = 'sidebar-message';
+            help.textContent = 'Place GLB models and cameras in a static SynC scene. Model and saved-scene folders are configured in app.json.';
+            this.sideBar.appendChild(help);
+        }
         else if (activeView in SPEC_VIEWS) this.renderSpecs(activeView);
     }
 
@@ -756,6 +770,7 @@ export class View {
         el.draggable = true;
 
         const label = document.createElement('span');
+        label.className = 'tab-label';
         label.textContent = tab.dirty ? `● ${tab.label}` : tab.label;
         label.title = tab.type === 'workflow' ? 'Double-click to rename workflow' : (tab.dirty ? `${tab.label} (modified)` : tab.label);
         el.appendChild(label);
@@ -901,6 +916,21 @@ export class View {
             return;
         }
 
+        if (activeTab.type === 'scene-composer') {
+            const host = document.createElement('div');
+            host.className = 'scene-composer-host';
+            container.appendChild(host);
+            import('./scene_composer.js').then(({ mountSceneComposer }) => {
+                if (!host.isConnected) return;
+                const composer = mountSceneComposer(host, activeTab, () => {
+                    const label = this.editorArea.querySelector(`[data-tab-id="${activeTab.id}"] .tab-label`);
+                    if (label) { label.textContent = activeTab.dirty ? `● ${activeTab.label}` : activeTab.label; label.title = activeTab.label; }
+                });
+                this.composerViews ??= [];
+                this.composerViews.push(composer);
+            }).catch(error => { if (host.isConnected) host.textContent = `Scene Composer failed: ${error.message}`; });
+            return;
+        }
         if (activeTab.type === 'workflow') {
             this.renderWorkflowCanvas(container, activeTab);
             return;

@@ -12,7 +12,7 @@ export async function readSceneDocument(filename) {
 }
 
 export async function renderSyntheticScene(params, {
-    appDir, runDir, blender, isAllowed, render = promisify(execFile)
+    appDir, modelsDir = path.join(appDir, 'SynC', 'models'), runDir, blender, isAllowed, render = promisify(execFile)
 }) {
     const filename = path.resolve(appDir, params.params_file || 'SynC/scenes/Cassini-Huygens-30m-BFLY-PGE-F12mm-B120.0mm/params.json');
     if (!isAllowed(filename)) throw new Error('Scene JSON path is not authorized. Choose the file again.');
@@ -21,7 +21,6 @@ export async function renderSyntheticScene(params, {
     if (!['PNG', 'JPEG', 'BMP', 'WEBP'].includes(document.scene.render?.image_format)) {
         throw new Error('Synthetic Scene requires a viewable output image format. Set scene.render.image_format to PNG.');
     }
-    const modelsDir = path.join(appDir, 'SynC', 'models');
     for (const model of document.models) {
         const asset = path.resolve(modelsDir, model.file);
         if (!isAllowed(asset)) throw new Error(`Model asset is not authorized: ${model.file}`);

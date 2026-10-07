@@ -434,6 +434,92 @@ orbital mechanics or a timed vehicle simulation.
 
 ## Workflow integration
 
+### Static Scene Composer
+
+The **Scene Composer** cube icon in the navigation ribbon opens an interactive
+3D editor for schema-v1 SynC scenes. The editor uses Three.js locally (including
+a local Draco decoder for compressed GLB models); Blender remains the
+authoritative renderer. Restart Electron after installing the new dependency
+or changing the preload API.
+
+Configure folders in the application's [`app.json`](../app.json):
+
+```json
+{
+  "modelsDir": "SynC/models",
+  "scenesDir": "~/data/workflows/scenes"
+}
+```
+
+Relative paths resolve against the application folder; absolute paths and
+`~/` paths are supported. Configuration changes take effect on restart.
+`modelsDir` is also passed to Blender when a Synthetic Scene workflow source
+renders, so editor and renderer use the same model library.
+
+1. Click a GLB filename to add a centered model at `(0, 30, 0)` meters, or
+   drag it onto the viewport's ground plane. **View** inspects the asset
+   without adding it to the scene. **Scene View** returns to the composition.
+2. Add a camera from the camera-definition palette, or choose **Generic
+   Camera**. Profiles need sensor active-area dimensions and focal length;
+   unsupported profiles report an error rather than silently guessing optics.
+   The first physical profile sets the render resolution from its sensor.
+3. Select objects in the viewport or scene tree. Use **Move**/**Rotate**
+   gizmos or the pose inspector. **Frame Selected** and **Frame Scene**
+   adjust the editor view; left-drag orbits, right-drag pans, and the wheel
+   zooms. Drag the divider between the viewport and right properties pane to
+   resize it; keyboard users can focus the divider and use the left/right
+   arrow keys. The selected pane width is remembered in the editor tab. The
+   T matrix field can also be resized vertically. The editor is Z-up, uses meters,
+   and matches SynC's model recentering
+   and glTF-to-Blender axis conversion.
+4. Edit position, Euler rotation (degrees in the inspector), or a row-major
+   4x4 **T local-to-world** matrix. T is a rigid pose, not an OpenCV
+   world-to-camera extrinsic; scale, reflection, and shear are rejected.
+   Camera local forward is `-Z` and local up is `+Y`, as in Blender.
+   The default camera faces world `+Y` with world `+Z` up. Camera frustums
+   are drawn to 10 meters for readability; actual clipping distances remain
+   configurable and are used for camera view/rendering.
+5. To align a camera, select it, choose a model in **Aim target**, and click
+   **Aim at Target**. This rotates the camera toward the centered model origin
+   without moving it, using world Z-up (world Y sets roll for vertical views).
+   The operation supports Undo/Redo and updates the saved pose/T matrix. It is
+   a one-time alignment, not a tracking constraint; aim again after moving the
+   model. Coincident camera/target positions report an error. Existing stereo
+   parallel-axis constraints remain enforced.
+   **Look Through Camera** previews framing with the scene's render aspect
+   ratio. **Blender Preview** renders the selected camera (or the first
+   camera) at reduced resolution, up to 16 samples, and displays its image.
+   Preview copies the scene, removes its trajectory for this static render,
+   and leaves the saved scene unchanged. Render artifacts remain under
+   `resultsDir/runs/Scene-Preview/`.
+6. Use **Save**/**Save As** to write a JSON file inside `scenesDir`. Scenes
+   need at least one model and camera before saving. Load from the saved-scene
+   list or **Import JSON** to bring in an existing SynC document. Import does
+   not overwrite the original file; saving an imported document creates a
+   new scene in the configured folder. Deletion requires confirmation and
+   removes only the chosen saved JSON, never models or rendered images.
+
+**Undo**/**Redo** cover scene edits, including gizmo operations. Unsaved changes
+are marked on the tab and confirmed before New, Load, Import, or tab closure.
+Splitting an editor makes an independent scene copy that uses Save As.
+The advanced **Scene JSON** editor preserves unknown fields, lighting settings,
+and trajectories; the static viewport shows stored poses, not trajectory
+playback. Referenced trajectory objects cannot be removed without editing the
+trajectory first. Imported stereo baseline/parallel-axis constraints are
+validated rather than silently discarded when cameras are edited independently.
+
+This initial composer does not provide trajectory gizmos, timeline playback,
+model scaling, calibration/distortion editing, or Blender-identical materials
+and lighting. Use the advanced JSON editor for fields without an inspector
+control, and Blender Preview to verify final appearance. Asset previews support
+self-contained GLB files up to 256 MB; external asset resource URLs are rejected.
+Saved scene documents retain the existing 1 MB JSON limit.
+
+To render a saved static scene from a workflow, choose its JSON file in a
+**Synthetic Scene** source and select the desired camera. The source's editable
+snapshot still determines that workflow's render, so reload the scene file there
+after changing it in the composer.
+
 ### Synthetic Scene: JSON-driven single image output
 
 The **Synthetic Scene** source uses the universal renderer directly, rather

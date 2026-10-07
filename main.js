@@ -11,6 +11,8 @@ import { uiViewResult } from './ui_view.js';
 import { processTextFile } from './process_text.js';
 import { executeCli } from './cli_process.js';
 import { readSceneDocument, renderSyntheticScene } from './synthetic_scene.js';
+import { configuredFolder, createSceneStorage } from './scene_composer_storage.js';
+import { validateComposerDocument } from './scene_composer_document.js';
 
 const APP_DIR = import.meta.dirname;
 const CLI_DIR = path.join(APP_DIR, 'cv-cli');
@@ -19,7 +21,10 @@ const MAPS_DIR = path.join(APP_DIR, 'maps');
 const SYNC_DIR = path.join(APP_DIR, 'SynC');
 
 // Settings live in app.json so the results location can be changed without touching code.
-const DEFAULT_SETTINGS = { resultsDir: '~/data/navlib', toolTimeoutMs: 60_000 };
+const DEFAULT_SETTINGS = {
+    resultsDir: '~/data/navlib', toolTimeoutMs: 60_000,
+    modelsDir: 'SynC/models', scenesDir: '~/data/workflows/scenes'
+};
 
 function loadSettings() {
     try {
@@ -56,6 +61,11 @@ const RESULTS_DIR = path.resolve(APP_DIR, expandHome(String(settings.resultsDir 
 // Toolbar output is scratch: cleared when the app quits, unlike runs.
 const SCRATCH_DIR = path.join(RESULTS_DIR, 'scratch', `session-${process.pid}`);
 allowedFolders.add(RESULTS_DIR);
+const MODELS_DIR = configuredFolder(APP_DIR, settings.modelsDir);
+const SCENES_DIR = configuredFolder(APP_DIR, settings.scenesDir);
+allowedFolders.add(MODELS_DIR);
+allowedFolders.add(SCENES_DIR);
+const sceneStorage = createSceneStorage({ modelsDir: MODELS_DIR, scenesDir: SCENES_DIR });
 
 const TOOL_TIMEOUT_MS = Math.max(1000, Number(settings.toolTimeoutMs) || DEFAULT_SETTINGS.toolTimeoutMs);
 
@@ -858,7 +868,7 @@ async function resolveSourceFrames(steps, elements, runDir, log) {
                 ...step.params,
                 params_file: step.params.params_file ? expandHome(step.params.params_file) : undefined
             }, {
-                appDir: APP_DIR, runDir, isAllowed: isInAllowedFolder,
+                appDir: APP_DIR, modelsDir: MODELS_DIR, runDir, isAllowed: isInAllowedFolder,
                 render: (exe, args, options) => executeCli(exe, args, options, log, step.name),
                 blender: existsSync('/Applications/Blender.app/Contents/MacOS/Blender')
                     ? '/Applications/Blender.app/Contents/MacOS/Blender' : 'blender'
@@ -1326,13 +1336,60 @@ function createWindow () {
         }
     });
 
-    window.loadFile('index.html');
+    window.loadFile(path.join(APP_DIR, 'index.html'));
     window.webContents.openDevTools(); // handy while learning: shows console errors like missing images
     return window;
 }
 
 app.whenReady().then(() => {
 
+    ipcMain.handle('composer:catalog', () => sceneStorage.catalog());
+    ipcMain.handle('composer:model', (_event, file) => sceneStorage.model(file));
+    ipcMain.handle('composer:load', (_event, file) => sceneStorage.load(file));
+    ipcMain.handle('composer:save', (_event, file, document, overwrite) =>
+        sceneStorage.save(file, document, overwrite === true));
+    ipcMain.handle('composer:delete', (_event, file) => sceneStorage.delete(file));
+    ipcMain.handle('composer:import', async event => {
+        const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), {
+            title: 'Import SynC scene', properties: ['openFile'], filters: [{ name: 'Scene JSON', extensions: ['json'] }]
+        });
+        if (canceled || !filePaths[0]) return null;
+        return sceneStorage.importFile(filePaths[0]);
+    });
+    let composerPreviewRunning = false;
+    ipcMain.handle('composer:preview', async (event, document, cameraName, tabId) => {
+        if (composerPreviewRunning) throw new Error('A scene preview is already rendering.');
+        validateComposerDocument(document);
+        composerPreviewRunning = true;
+        try {
+            const snapshot = structuredClone(document);
+            delete snapshot.trajectory;
+            snapshot.scene.render = {
+                ...snapshot.scene.render, image_format: 'PNG', color_depth: '8',
+                resolution_percentage: Math.max(
+                    Math.ceil(100 / Math.min(...snapshot.scene.render.resolution_px)),
+                    Math.min(25, snapshot.scene.render.resolution_percentage ?? 100)
+                ),
+                samples: Math.min(16, snapshot.scene.render.samples ?? 16)
+            };
+            const runDir = path.join(RUNS_DIR, 'Scene-Preview', `${Date.now()}-${randomUUID()}`);
+            await mkdir(runDir, { recursive: true });
+            allowedFolders.add(runDir);
+            const log = entry => { if (!event.sender.isDestroyed()) event.sender.send('console:log', { tabId, ...entry }); };
+            const result = await renderSyntheticScene({
+                params_file: path.join(SCENES_DIR, 'preview.json'),
+                config_json: JSON.stringify(snapshot), camera_name: cameraName
+            }, {
+                appDir: APP_DIR, modelsDir: MODELS_DIR, runDir, isAllowed: isInAllowedFolder,
+                blender: existsSync('/Applications/Blender.app/Contents/MacOS/Blender')
+                    ? '/Applications/Blender.app/Contents/MacOS/Blender' : 'blender',
+                render: (exe, args, options) => executeCli(exe, args, options, log, 'Scene preview')
+            });
+            return { path: result.files[0], url: pathToFileURL(result.files[0]).href };
+        } finally {
+            composerPreviewRunning = false;
+        }
+    });
     ipcMain.handle('vision:run', (event, action, imagePath, params, tabId) =>
         runVisionCli(action, imagePath, params, entry => {
             if (!event.sender.isDestroyed()) event.sender.send('console:log', { tabId, ...entry });

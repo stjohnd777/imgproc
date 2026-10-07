@@ -1389,6 +1389,7 @@
             margin-left: 0;
         }
     </style>
+    <link rel="stylesheet" href="./scene_composer.css">
 </head>
 
 <body>
@@ -1402,6 +1403,11 @@
             </svg>
         </button>
         <button id="cameras-btn" title="Cameras">📷</button>
+        <button id="scenes-btn" title="Scene Composer" data-tooltip="Scene Composer" aria-label="Scene Composer">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3 21 8v9l-9 5-9-5V8zM3 8l9 5 9-5M12 13v9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+        </button>
         <button id="algorithms-btn" title="Algorithms" hidden>🧩</button>
         <button title="2-DoF planar motion" data-tooltip="2-DoF" aria-label="2-DoF planar motion" hidden>
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1443,6 +1449,9 @@
     <div class="modal-backdrop" id="threshold-modal" hidden></div>
     <div class="modal-backdrop" id="disparity-modal" hidden></div>
 
+    <script type="importmap">
+        {"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}
+    </script>
     <script type="module">
         import { Controller, LocalRunner } from './Controller.js';
         import { TabModel, SideBarModel, ExplorerModel, SpecModel } from './Data.js';
@@ -1476,6 +1485,7 @@
                 explorer: document.getElementById('explorer-btn'),
                 results: document.getElementById('results-btn'),
                 cameras: document.getElementById('cameras-btn'),
+                scenes: document.getElementById('scenes-btn'),
                 algorithms: document.getElementById('algorithms-btn'),
                 elements: document.getElementById('workflow-btn')
             }

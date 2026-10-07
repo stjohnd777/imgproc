@@ -77,6 +77,12 @@ export class TabModel {
         }, target.id);
         const copy = this.getTab(this.getGroup(target.id).activeTabId);
         if (copy?.type === 'workflow') copy.dirty = Boolean(copy.graph.nodes.length || copy.graph.edges.length);
+        if (copy?.type === 'scene-composer') {
+            copy.composer = tab.composer && structuredClone(tab.composer);
+            // An independent copy must use Save As rather than overwrite the original scene.
+            if (copy.composer) copy.composer.file = null;
+            copy.dirty = Boolean(copy.composer);
+        }
         return target.id;
     }
 

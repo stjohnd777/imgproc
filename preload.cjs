@@ -1,5 +1,14 @@
 // Preload runs with a tiny, trusted API surface; this is the ONLY way the page reaches the main process.
 const { contextBridge, ipcRenderer } = require('electron');
+contextBridge.exposeInMainWorld('sceneComposer', {
+    catalog: () => ipcRenderer.invoke('composer:catalog'),
+    model: file => ipcRenderer.invoke('composer:model', file),
+    load: file => ipcRenderer.invoke('composer:load', file),
+    save: (file, document, overwrite = false) => ipcRenderer.invoke('composer:save', file, document, overwrite),
+    delete: file => ipcRenderer.invoke('composer:delete', file),
+    import: () => ipcRenderer.invoke('composer:import'),
+    preview: (document, cameraName, tabId) => ipcRenderer.invoke('composer:preview', document, cameraName, tabId)
+});
 contextBridge.exposeInMainWorld('tabConsole', {
     onLog: handler => {
         const listener = (_event, entry) => handler(entry);
