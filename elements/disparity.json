@@ -5,19 +5,25 @@
   "kind": "transform",
   "category": "stereo",
   "icon": "transform",
-  "summary": "Stereo disparity map from a rectified left/right image pair.",
+  "summary": "Dense StereoSGBM disparity from already-rectified 8-bit left/right images. Outputs a visualization and numeric pixel disparities; does not rectify images or estimate metric depth.",
   "inputs": [
     { "name": "left", "type": "image" },
     { "name": "right", "type": "image" }
   ],
   "outputs": [
-    { "name": "disparity", "type": "disparity" }
+    { "name": "disparity", "type": "disparity" },
+    { "name": "data", "type": "text" }
   ],
   "params": {
-    "leftCamera": { "type": "camera", "default": null, "description": "camera_spec entry for the left camera." },
-    "rightCamera": { "type": "camera", "default": null, "description": "camera_spec entry for the right camera." },
-    "numDisparities": { "type": "number", "default": 64 },
-    "blockSize": { "type": "number", "default": 9 }
+    "numDisparities": { "type": "integer", "label": "Disparity range (px, multiple of 16)", "default": 64, "min": 16, "max": 512, "step": 16, "description": "Search disparities from 0 to range - 1. Must be smaller than the image width." },
+    "blockSize": { "type": "odd", "label": "Block size (px)", "default": 9, "min": 3, "max": 21, "step": 2 },
+    "uniquenessRatio": { "type": "integer", "label": "Uniqueness ratio (%)", "default": 10, "min": 0, "max": 100, "step": 1 },
+    "speckleWindowSize": { "type": "integer", "label": "Speckle window (pixels, 0 disables)", "default": 100, "min": 0, "max": 1000, "step": 1 },
+    "speckleRange": { "type": "integer", "label": "Speckle disparity tolerance (px)", "default": 2, "min": 0, "max": 32, "step": 1 }
   },
-  "telemetry": []
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-disparity/build/disparity_cli",
+    "args": ["{in.left}", "{in.right}", "{out.disparity}", "{out.data}", "{param.numDisparities}", "{param.blockSize}", "{param.uniquenessRatio}", "{param.speckleWindowSize}", "{param.speckleRange}"]
+  }
 }

@@ -7,6 +7,8 @@ export function renderArgs(template, { inputs, outputs, params, frameIndex }) {
             }
             return String(frameIndex);
         }
+        const fallback = /^\{in\.([\w-]+)\|param\.([\w-]+)\}$/.exec(item);
+        if (fallback) return String(inputs[fallback[1]] || params[fallback[2]] || '');
         const match = /^\{(in|out|param)\.([\w-]+)\}$/.exec(item);
         if (!match) return item;
         const [, kind, key] = match;

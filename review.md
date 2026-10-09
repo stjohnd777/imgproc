@@ -1,153 +1,292 @@
 # Application understanding review
 
-Reviewed September 30, 2026 against the current working tree, including its uncommitted changes. This is a source-level understanding document for validation before adding functionality. No application code was changed, and the GUI, native binaries, and test suites were not run for this review.
+Updated October 8, 2026 against the current working tree on `main`.
+Latest commit checked: `b92f2e2` (sparse stereo coordinate fix).
+This document summarizes the current architecture and evidence from recent
+implementation/validation; it is not a new exhaustive code or security audit.
+Pending changes are included and are not all committed.
+
+For operational details and continuation tasks, see [HANDOFF.md](HANDOFF.md).
+
+The new **AI/ML** category contains a **Stereo Pose Estimator** scaffold.
+Its [CLI](cv-cli/cpp-stereo-pose/README.md) is wired to stereo image inputs and
+pose JSON output, with authorized model/metadata file parameters. It reports
+explicit failure without writing a pose: ONNX Runtime inference and Python
+training are not implemented.
 
 ## Purpose and current shape
 
-The application is a desktop workspace for exploring computer vision operations on images and assembling those operations into visual processing workflows. Electron provides the interface and orchestration; standalone C++ programs use OpenCV to process images. Files are the current data exchange mechanism between processing steps.
+**Orbital Eyes** is an Electron desktop workbench for image processing,
+synthetic spacecraft imagery, and visual-navigation research for
+rendezvous/proximity operations (RPO). Plain JavaScript provides the UI and
+orchestration; standalone C++/OpenCV executables process artifact files.
 
-There are two complementary experiences:
+Three complementary experiences are implemented:
 
-1. **Image exploration:** open images, compare them in editor groups, adjust operation parameters, and inspect processed previews.
-2. **Workflow construction and execution:** connect typed source, transform, and sink nodes, configure their parameters, inspect an execution plan, and process image sequences while retaining intermediate results.
+1. **Image exploration:** inspect images and run individual toolbar operations.
+2. **Workflow composition:** connect typed nodes, edit parameters, save/load
+   workflow documents, and execute image sequences with retained artifacts.
+3. **Scene Composer:** build static synthetic scenes with models/cameras,
+   edit transforms, and generate Blender previews.
 
-A separate `cpp-lib/` project establishes a longer-term camera, calibration, bearing, stereo, and attitude library/service direction. It is not the backend currently used by the Electron application's local processing path.
+The intended navigation component would combine camera observations and GNC
+estimates to produce range, bearing, and relative attitude. A cFS-independent
+engine with a thin cFS adapter was discussed; application integration with
+cFS is not implemented.
 
 ## Repository responsibilities
 
-| Location | Current responsibility |
-| --- | --- |
-| `package.json`, `main.sh` | Electron launch configuration; JavaScript uses ES modules. `npm start` launches Electron. |
-| `main.js` | Window lifecycle, IPC handlers, file dialogs and access checks, specification loading, toolbar action declarations, native process execution, workflow planning/execution, and result storage. |
-| `preload.cjs` | Narrow renderer bridge exposing `vision`, `explorer`, `specs`, and `workflow` APIs through Electron IPC. |
-| `index.html` | Application shell, CSS, toolbar action list, and renderer initialization. Starts with the two bundled images and `LocalRunner`. |
-| `Data.js` | In-memory models for tabs, editor groups, sidebar, file explorer, specification trees, and workflow graphs; also defines port compatibility. |
-| `Controller.js` | Coordinates user actions, model changes, rendering, processing requests, and workflow progress. Contains `LocalRunner` and an unused-by-default `RestRunner`. |
-| `View.js` | DOM rendering and interaction: tabs, resizing and dragging, explorer/spec trees, image display, workflow canvas and wires, and parameter dialogs. |
-| `surface.html`, `surface-preload.cjs` | Separate intensity-surface visualization window, using a 2D canvas to draw a projected surface. |
-| `elements/*.json` | Workflow element catalog: identity, role/category, ports, parameters, and executable or built-in execution mapping. |
-| `camera_spec/`, `algo_spec/` | JSON reference data displayed in the sidebar; camera data also supplies relevant dialog values. Algorithm specifications are not executable workflows. |
-| `cv-cli/` | Independently built C++17/OpenCV command-line tools, each with its own CMake project. Shared optional-argument helpers live in `cv-cli/common/cli_args.hpp`. |
-| `cpp-lib/` | Separate CMake project with common camera/calibration code, domain libraries, examples, Crow servers, and GTest tests. |
-| `app.json` | Results directory and native-tool timeout settings. |
-| `design.md` | Architectural intent and implementation notes, with some older sections that no longer match the code. |
+| Location | Responsibility |
+|---|---|
+| [main.js](main.js) | Electron lifecycle, IPC, authorized filesystem access, CLI declarations, workflow persistence/planning/execution |
+| [preload.cjs](preload.cjs) | Renderer IPC bridge |
+| [Data.js](Data.js) | Tab/sidebar/spec/workflow models and port compatibility |
+| [Controller.js](Controller.js) | Coordinates models, views and processing; local and REST runner abstractions |
+| [View.js](View.js) | DOM UI, graph canvas, parameter dialogs and artifact display |
+| [index.html](index.html) | Application shell, styles, toolbar and initialization |
+| [app.json](app.json) | Results directory, timeout, model and saved-scene directories |
+| [elements/](elements/) | Installed workflow declarations, ports, parameters and execution mapping |
+| [cv-cli/](cv-cli/) | Native C++17/OpenCV projects, tests and CLI documentation |
+| [workflow_args.js](workflow_args.js) | Workflow positional argument expansion |
+| [SynC/](SynC/) | Blender camera/scene generation, models, scenarios and validation |
+| [scene_composer.js](scene_composer.js) | Three.js viewport and scene editing |
+| [scene_composer_document.js](scene_composer_document.js) | Scene validation, transforms and camera aiming |
+| [scene_composer_storage.js](scene_composer_storage.js) | Configured scene CRUD and GLB catalog |
+| [surface.html](surface.html) | Separate image-intensity surface visualization |
+| [cpp-lib/](cpp-lib/) | Separate native camera/calibration/domain/service direction; not the current Electron local backend |
 
-## Process boundary and image exploration
-
-The normal call chain is:
-
-```text
-View → Controller → LocalRunner → preload IPC → main.js → C++ CLI
-View ← Controller ← image data URL, output path, and timing ← main.js
-```
-
-The renderer uses plain JavaScript and DOM APIs, with no frontend framework. Native execution uses `execFile` with argument arrays, rather than shell command strings. There is no native Node addon or persistent C++ worker in this path: each operation launches a separate executable.
-
-Image tabs distinguish the display URL (`src`) from the file to process (`path`). Most toolbar actions set a temporary `resultSrc` preview on the existing tab. They do **not** replace its input path: clicking another operation processes the original tab input, not the preceding preview. Explicit operation chaining belongs to the workflow graph. Fourier is a special case that opens a new tab backed by its generated output file.
-
-The UI supports opening image folders, recursive browsing, multiple side-by-side editor groups, tab movement/splitting/renaming, zoom, reset, parameter dialogs, errors, and processing timing. Camera and algorithm JSON can be inspected as expandable trees. The 2-/3-/6-DoF and Settings activity buttons are presentational placeholders rather than completed tools.
-
-Toolbar declarations in `main.js` drive most parameter dialogs and validate toolbar arguments. Stretch, Undistort, and Disparity have specialized dialogs. `SURFACE` opens a separate visualization of the tab's file; it uses browser-decoded pixels rather than native high-bit-depth measurements.
-
-## Workflow data and execution
-
-A workflow is an in-memory tab containing `graph: { nodes, edges }`. Nodes carry their element ID, display metadata, position, parameter values, and copied port definitions. Edges identify producer and consumer nodes and named ports. The copied definitions preserve drawing information, while the main process reloads the element catalog to determine execution behavior.
-
-The editor supports adding, moving, configuring, and removing nodes; connecting and removing wires; naming workflows; planning; running; and stopping. There is no implemented workflow save/load or session restoration.
-
-Port types are `image`, `disparity`, `keypoints`, `matches`, and `pointcloud`, with `any` treated as a wildcard. `disparity` extends `image`. The model rejects self-connections, cycles, duplicate edges, and incompatible types. Outputs can feed multiple consumers; ordinary inputs accept one producer, while sink inputs permit multiple producers in the editor.
-
-Execution proceeds as follows:
-
-1. The planner checks for an empty graph, cycles, and unconnected inputs, then creates a topological step order and prospective artifact paths. A successful plan also creates its run directory.
-2. The main process loads trusted execution definitions from `elements/` and resolves source files.
-3. Each frame runs every step sequentially in topological order. Graph branches are currently executed sequentially too.
-4. CLI argument templates substitute `{in.port}`, `{out.port}`, and `{param.name}`. Output files become downstream inputs.
-5. Progress events report frame and step timing. The runner waits out any remaining frame interval and counts frames exceeding that interval as late.
-6. Stop requests take effect between frames; they do not immediately terminate the current native process or remaining steps of that frame.
-
-Directory sources use supported images directly inside the selected directory, sorted in natural filename order. Multiple directories are paired **by index**, and the shortest directory determines the default frame count. Single-image sources repeat alongside a directory, or produce one frame when used alone. The first source with a truthy `fps` supplies the pacing value. The UI does not supply `maxFrames`, so the current loop option does not cause continuous looping.
-
-Source nodes forward original file paths. Splitter forwards the same input path to both outputs without copying. Save to Directory copies the selected incoming file. CLI transforms write intermediate files.
-
-## Available processing versus placeholders
-
-| Area | Source-level status |
-| --- | --- |
-| Sources | Single Image and Image Directory have built-in execution; Camera has a definition but no capture implementation. |
-| Filters | Canny, Sobel, Threshold, Contours, Gaussian, Median, and Stretch have CLI implementations and element definitions. |
-| Features | SURF, SIFT, ORB, FAST, KAZE, BRISK, and Corners have CLI implementations. The toolbar label `URF` maps to SURF. |
-| Structured features | SIFT can write keypoint JSON plus an annotated preview. Other feature tools currently emit previews only. SIFT exports detected keypoints, not descriptor vectors. |
-| Analysis | Fourier produces a spectrum image; Histogram produces a chart image. Surface is a separate renderer visualization. |
-| Geometry | Undistort has an executable. Disparity has a setup dialog and element definition, but local stereo execution explicitly throws an unimplemented error and the element has no execution mapping. |
-| Flow/output | Splitter and Save to Directory have built-in execution. |
-| Future data types | Matches and point clouds have type/extension declarations, but no implemented producing/consuming element pipeline. Telemetry ports are modeled visually, with no concrete catalog outputs or runner implementation. |
-| Remote execution | `RestRunner` sketches multipart HTTP uploads, but is not selected at startup; existing Crow routes provide health/hello endpoints rather than the processing API it expects. |
-
-Most tools read images in 8-bit color or grayscale. Stretch explicitly reads unchanged input, including 16-bit images, and maps it into an 8-bit output. This is not yet a general pipeline that preserves original precision through every transform. Image-tab `pixelType` is a placeholder, not measured file metadata.
-
-## Results and reproducibility
-
-`app.json` currently specifies `resultsDir: "~/data/navlib"` and `toolTimeoutMs: 60000`. Relative result paths resolve from the application directory; missing or malformed settings fall back to defaults.
+## Processing boundary and UI
 
 ```text
-<resultsDir>/
-  scratch/session-<pid>/                    toolbar outputs
-  runs/<workflow-slug>/<timestamp>/
-    frames/0001/01_<node>__<port>.<ext>      generated step outputs
+View -> Controller -> LocalRunner -> preload IPC -> main -> native CLI
+View <- Controller <- output artifact and processing information
 ```
 
-Workflow outputs are retained; the current session's scratch directory is removed on normal app quit. Image/disparity ports use PNG filenames, keypoints/matches use JSON, and point clouds use PLY.
+Native processes receive argument arrays without a shell. Main reads installed
+element definitions instead of trusting renderer-supplied executable mappings.
+Selected files/folders require authorization; typing a path does not itself
+grant access. These are application boundaries, not a claim of comprehensive
+security auditing.
 
-The retained files help inspection, but a run is not yet a fully reproducible snapshot: no graph/parameter manifest is written, original source files are not copied, and passthrough outputs are not materialized at the planner's advertised paths.
+Toolbar image processing and workflow composition remain separate. Toolbar
+previews generally do not replace the tab's processing input; explicit chains
+belong in workflows. Fourier can open a generated-output tab.
+The image-intensity surface view is not a metric depth reconstruction.
 
-## Separate C++ library direction
+Schema-driven dialogs serve most toolbar actions and workflow nodes.
+Camera profiles can fill relevant intrinsics/distortion parameters.
+Process Text uses a multiline code editor.
+The free-form **DISPARITY** dialog remains an unfinished preparation surface;
+it is distinct from the functioning Disparity workflow element.
 
-`cpp-lib/common` contains substantive camera math and calibration support: camera intrinsics, distortion, rigid poses, projection, checkerboard geometry, mono/stereo calibration, and undistort/rectify maps. Camera and calibration tests cover real behavior.
+## Workflow data, persistence and execution
 
-The bearing, stereo, and attitude domain entry points currently return hello-world placeholder results. Their Crow servers expose corresponding health/hello routes. Those domain and server tests are mostly scaffold tests. The Docker files describe a development environment for this library/service direction; they are not required by the current local Electron-to-CLI call chain.
+- Nodes identify installed elements and hold parameters, positions and ports.
+  Workflow save/open rebuilds definitions from the installed catalog and
+  validates document structure/parameters.
+- File artifacts carry data between steps. Port types include `image`, `text`,
+  `disparity`, `keypoints`, `matches`, and `pointcloud`.
+  Disparity extends image; keypoints/matches extend text.
+- One output can feed multiple consumers. Graph steps and branches execute
+  sequentially in topological order for each frame.
+- Planning checks structure, including required connections. Optional inputs
+  may be disconnected and use configured file/preset fallbacks.
+  A runnable plan is not proof that every native operation will succeed.
+- Arguments support `{in.port}`, `{out.port}`, `{param.name}`,
+  `{frame.index}`, and connected-input/configuration fallbacks such as
+  `{in.maps|param.map_x}`.
+- Single-image sources can repeat alongside sequences. Processing is paced
+  by completion; late frames are reported.
+- UIView/UIViewText display image/text artifacts, optionally reusing tabs.
+  Splitters forward artifact paths without copying.
+- Save sinks copy files. Changing an image sink extension does not itself
+  re-encode the file; format conversion belongs upstream.
+- Workflow persistence, latest-frame artifact actions, and Results management
+  are implemented; the old review's claim that workflows could not save/load
+  is obsolete.
+- The editor supports multi-select (click modifiers and box), group drag,
+  cut/copy/paste/duplicate (internal connections only, new IDs), Delete, and
+  per-tab undo/redo. Selection is not undoable and does not mark the workflow
+  modified; history is in memory only and is not saved with the workflow.
 
-## Gaps and discrepancies to keep in view
+Batch stereo calibration is intended for a separate setup workflow. A
+no-input calibration node in a multi-frame graph currently executes per frame,
+so save and reuse calibration rather than recalibrating every mission image.
 
-These observations come from reading the code, not from reproducing failures in the GUI.
+## Available capabilities and limitations
 
-| Observation | Consequence |
-| --- | --- |
-| Sink inputs accept multiple edges, but `prepareWorkflowRun` uses `edges.find` for each input. | Only the first producer is passed to execution; a sink does not yet collect all connected streams. |
-| Save to Directory uses `copyFile`; `fmt` only changes the extension. | Selecting JPG for PNG input does not encode JPEG. Repeated runs with the same sink name/frame can overwrite destination files. |
-| Run IDs have second-level timestamp precision. | Runs or plans for the same workflow within one second can share a directory; uniqueness is not guaranteed. |
-| Planning checks graph structure only partially. | A plan may be marked runnable despite unsupported elements, missing executables, unset source/destination paths, or invalid parameters. |
-| Toolbar and workflow parameters use separate declarations and validation paths. | Toolbar validation uses `CLI_ACTIONS`; workflow arguments are substituted directly, with substantial validation left to the CLI. The workflow runner does not fully validate against the element parameter schema. |
-| Nodes retain copied ports but execution definitions are reloaded. | Editing the catalog can leave existing nodes out of sync with the executable's expected ports/defaults. |
-| Filesystem allow-list checks use lexical paths, not resolved real paths. | They provide a boundary for normal use, but should not be described as complete symlink-aware containment. |
-| The main-process planner trusts much of the submitted graph. | Editor connection checks are not equivalent to comprehensive IPC-side graph validation. |
-| Early `design.md` sections call parameter editing and running unbuilt. | Those features are implemented. Older claims about filename pairing and workflow schema validation also exceed current behavior. |
+| Area | Current status |
+|---|---|
+| Sources | Single Image, Image Directory, synthetic sources and finite-batch Physical Camera execution |
+| Legacy Camera | Generic Camera declaration still lacks execution mapping |
+| Image processing | Filters, enhancement, geometry, segmentation, analysis and simulation CLIs |
+| Features | SIFT, SURF, ORB, FAST, KAZE, BRISK and Corners emit previews and structured keypoint JSON |
+| Descriptors | Detector CLIs do not currently export descriptor matrices |
+| Utilities | Process Text, SplitterText, Splitter (2/3/4-way), image splitting, horizontal/vertical concatenation |
+| Sparse stereo | Integer-centered NCC block matching, matches, 3D cloud and position mean |
+| Dense stereo | StereoSGBM Disparity element with preview and numeric disparity data |
+| Dense reconstruction | Dense Stereo consumes numeric disparity and matching Q, with optional mask; outputs PLY and mean surface position/range/bearing |
+| Calibration | Paired-checkerboard Stereo Calibrate and Stereo Rectification with Q/maps |
+| Scene Composer | GLB viewing/placement, poses/T, camera aiming, scene CRUD, Blender previews |
+| Range & Bearing | Mean visible-surface range/bearing is implemented in Dense Stereo; dedicated robust target-center estimation is future work |
+| Full target pose | Not established by averaging surface points; requires additional estimation |
+| REST/cFS | Architectural direction, not the selected local processing path |
 
-Other existing development limitations include the missing Content Security Policy, automatically opened DevTools, and unused `uuid.js`. The design notes mention stale Sobel build output and a failed Docker build; their current runtime status was not independently verified.
+Precision is not uniform: older tools often load 8-bit color, while several
+effects preserve unsigned 8/16-bit inputs. Consult individual tool documentation.
+Process Text is synchronous JSON-only and intended for trusted scripts, not
+a security sandbox.
 
-## Build and validation baseline
+## Stereo geometry and correctness
 
-Electron launches with `npm start` or `./main.sh` after dependencies are installed. Each native tool is built independently, for example:
+### Sparse matcher
+
+[simple_stereo_cli.cpp](cv-cli/cpp-simple-stereo/simple_stereo_cli.cpp) performs
+sparse block/template matching at supplied keypoints, not descriptor matching.
+The fixed bug mixed fractional detector positions with integer patch centers.
+Reported left coordinates, disparity, and XYZ now use consistent patch centers.
+Zero disparity yields null 3D and contributes no finite point to the mean.
+
+This fix does not implement subpixel sparse matching. Native fx defaults to
+1000 px; the workflow supplies 3200 px. Baseline input is millimeters, while
+exported point3d/PLY/position estimates use meters.
+
+The previously supplied position magnitude remains **95.428294 m**.
+That alone does not establish a depth algorithm error relative to a 100 m
+model origin: matched surface points and the model origin are different
+reference points. Per-point truth validation is still needed.
+
+### Dense disparity
+
+[Disparity](elements/disparity.json) runs StereoSGBM on already-rectified,
+equal-sized 8-bit images. Its `data` output preserves numeric pixel disparity
+and invalid nulls; `disparity` is a visualization, not measurement data.
+OpenCV's fixed-point output is divided by 16. Fractional output resolution
+is not a guarantee of subpixel accuracy.
+
+### Calibration and rectification
+
+[Stereo Calibrate](elements/stereo_calibrate.json) pairs folder images by
+identical filename, detects checkerboards, estimates individual K/D, then
+solves relative R/T with intrinsics fixed. It reports RMS and accepted/rejected
+pairs. Defaults are 9x6 inner corners, 0.025 m square size, and eight accepted
+pairs. Diverse poses and independent validation are essential.
+
+[Stereo Rectification](elements/stereo_rectify.json) takes calibration JSON
+and produces Q, R1/R2, P1/P2, valid ROIs and left/right map pairs.
+Maps feed optional `maps` ports on [Remap](elements/remap.json), preserving
+existing file/preset behavior when disconnected.
+
+```text
+Paired checkerboard folders -> Stereo Calibrate -> Stereo Rectification
+Stereo Rectification.leftMaps  -> Left Remap.maps
+Stereo Rectification.rightMaps -> Right Remap.maps
+Left/Right rectified images -> Disparity -> numeric disparity
+```
+
+Calibration uses meters and OpenCV camera axes (right/down/forward).
+`point_C2 = R * point_C1 + T`; T is a 3x1 vector, not a world pose.
+Q reconstructs in the rectified left camera frame. Known synthetic geometry
+can bypass checkerboard estimation using the documented calibration schema.
+Current dense processing requires horizontal positive left-minus-right
+disparity; reversed/vertical rigs are rejected.
+
+Maps and Q must match the same image dimensions and rectification settings.
+Do not directly mix Blender world poses or original intrinsics with rectified
+image geometry. The rendering helpers' width/2 convention and nominal
+profiles' (width-1)/2 convention require explicit reconciliation when exporting
+synthetic calibration.
+
+Full schema and examples:
+[stereo calibration README](cv-cli/cpp-stereo-calibration/README.md).
+
+[Dense Stereo](cv-cli/cpp-dense-stereo/README.md) now implements the reconstruction
+stage. It uses Disparity `data`, Stereo Rectification `rectification`, and an
+optional target mask. It excludes invalid/low disparity, invalid ROIs,
+behind-camera geometry and excessive range; reports counts and unavailable
+status when too few points remain. It outputs meter-valued PLY and mean
+visible-surface position/range/bearing, not target attitude or model-center pose.
+Latest focused suite: 27 passed, including an actual StereoSGBM/Q 15 m plane.
+Generated maps already combine undistortion and rectification: raw physical
+images should go directly to Remap, without a preceding Undistort.
+
+## Scene Composer
+
+The editor uses locally loaded Three.js/Draco GLB assets from the configured
+model directory. It supports orbit/pan/zoom, gizmos, rigid local-to-world T,
+scene JSON, undo/redo, lighting, and save/load/import/delete.
+Aim at Target rotates a camera toward the model origin without moving it;
+it does not create a persistent tracking constraint.
+
+Blender remains the render authority; viewport materials are not guaranteed
+to reproduce Blender output. Trajectory fields are preserved, but the initial
+composer interaction is static. The inspector is resizable.
+A known body ResizeObserver disposal issue remains to be addressed separately.
+
+## Results, configuration and reproducibility
+
+Current [app.json](app.json):
+
+```json
+{
+  "resultsDir": "~/data/workflows",
+  "toolTimeoutMs": 60000,
+  "modelsDir": "SynC/models",
+  "scenesDir": "~/data/workflows/scenes"
+}
+```
+
+Results use producing-node/port filenames and typed extensions.
+Run IDs contain timestamps plus UUIDs; the old second-resolution collision
+claim no longer applies. Run artifacts persist; scratch is separate.
+Retained files alone should not be described as a complete immutable
+reproducibility package containing source imagery and all environment state.
+
+## Documentation and validation evidence
+
+[CLI reference](cv-cli/README.md) indexes all native tools. Each of the
+24 project READMEs covers purpose, arguments/defaults, examples, workflow
+support, and actual free-form toolbar availability. Multi-tool projects have
+per-executable sections. Verified 31 workflow CLI entries and 89 local links.
+
+Recent validation:
+
+- Native dense disparity and stereo calibration projects built successfully.
+- Combined focused stereo/shared-workflow suite: **39 passed, 0 failed**.
+- Sparse regressions failed before the coordinate fix and passed afterward.
+- Perspective checkerboard fixtures recovered the known baseline within
+  tolerance and fed rectification through actual workflow execution.
+- Known Q reconstructed a 100 m point correctly.
+- Generated maps worked directly with Remap; ideal identity maps preserved
+  pixels exactly.
+- Browser checks verified parameter saving and invalid-setting rejection.
+- Earlier Scene Composer checks exercised actual Electron storage and Blender
+  rendering; these are prior evidence, not newly rerun in this document update.
+
+Build native projects using VS Code CMake Tools. App execution is `npm start`.
+Tests use Node's built-in runner; `npm test` remains a placeholder.
+Latest targeted command:
 
 ```sh
-cmake -S cv-cli/cpp-canny -B cv-cli/cpp-canny/build
-cmake --build cv-cli/cpp-canny/build
+node --test cv-cli/test/stereo_calibration.test.mjs \
+  cv-cli/test/disparity.test.mjs cv-cli/test/simple_stereo.test.mjs \
+  palette_categories.test.js ui_view.test.js ui_view_text.test.js \
+  splitter_text.test.js process_text.test.js view_helpers.test.js
 ```
 
-The application expects executables under `cv-cli/cpp-<name>/build/<name>_cli`. SURF requires OpenCV contrib with nonfree support. There is no root npm script orchestrating all CLI builds, and `npm test` is currently a deliberately failing placeholder. The separate C++ library has CMake/GTest infrastructure. VS Code has a combined main/renderer debugging configuration.
+## Priorities and interpretation
 
-For this review I inspected the application models, controller, view, IPC/execution paths, element catalog, representative native implementations, C++ library structure, build configuration, and design notes. Runtime correctness and whether existing binaries match current source remain unverified.
+1. Extend the implemented Dense Stereo mean surface range/bearing toward
+   robust target estimation, with explicit geometry/reference-point semantics.
+2. Distinguish visible-surface range from target-center range, and point spread
+   from navigation uncertainty.
+3. Evaluate subpixel sparse refinement and confidence rejection against
+   known synthetic disparity/depth, not just visually plausible outputs.
+4. Complete the separate free-form Disparity execution path if desired.
+5. Preserve pending changes and validate unresolved historical issues before
+   repeating old review findings as current facts.
 
-## Understanding to validate before new functionality
-
-My working understanding is that image exploration should remain a quick way to inspect individual operations, while workflows provide explicit composition and inspectable runs. Element definitions are the main extension point for graph capabilities, and local C++/OpenCV execution is the current operating backend.
-
-The decisions most likely to affect upcoming work are:
-
-1. Should toolbar operations continue to use the original image, or should users be able to promote a preview into a new processing input?
-2. Should directory streams pair by sorted position, exact filename, or recorded timestamps?
-3. Should multi-input sinks save every connected stream, as the current editor permits?
-4. Is the next priority workflow reliability/persistence, additional vision operations, camera/stereo support, or the library/service integration?
-5. Which outputs need scientific fidelity: original bit depth, structured features/descriptors, calibration data, or fully reproducible run records?
-
-These are validation points, not proposed implementation commitments. No new functionality is included in this review.
+The current application is a functioning research workbench, not yet a
+validated flight-navigation estimator. Its file-based workflow architecture
+is useful for independent comparison of correspondences, calibration,
+reconstruction, and future navigation measurement extraction.

@@ -1,5 +1,0 @@
-- create a source for a physical camera(s)
-- SynC
-  - ingress
-  - egress
-  - circle

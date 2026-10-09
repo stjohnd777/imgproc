@@ -2,6 +2,10 @@
 
 Headless OpenCV camera capture to numbered PNG files.
 
+Workflow: [Physical Camera](../../elements/physical_camera_source.json).
+Free-form image toolbar: **not available**.
+Build/positional conventions: [CLI reference](../README.md).
+
 ```text
 usb_camera_cli <device_id> <output_dir> [frame_count] [height width]
 ```

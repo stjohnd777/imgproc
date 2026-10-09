@@ -507,7 +507,7 @@ async function prepareWorkflowRun({ name, graph } = {}) {
     const filled = new Set(edges.map(edge => `${edge.to.nodeId}:${edge.to.port}`));
     for (const node of nodes) {
         for (const port of node.inputs ?? []) {
-            if (!filled.has(`${node.id}:${port.name}`)) {
+            if (!port.optional && !filled.has(`${node.id}:${port.name}`)) {
                 problems.push(`${node.name} has nothing connected to its "${port.name}" input.`);
             }
         }
@@ -1061,6 +1061,28 @@ async function runFrame({ steps, elements, sourceFrames, runDir, frame, onStepSt
             });
         } else {
             if (!element.exec?.cli) throw new Error(`${step.name} cannot run yet (${builtin ?? 'no exec'}).`);
+            if (element.id === 'stereo_calibrate') {
+                for (const name of ['leftDir', 'rightDir']) {
+                    const folder = step.params[name];
+                    if (!folder || !isInAllowedFolder(path.join(folder, 'probe'))) {
+                        throw new Error(`${step.name}: choose an authorized ${name} folder before running.`);
+                    }
+                }
+            }
+            if (element.id === 'stereo_rectify' && !inputs.calibration) {
+                const file = step.params.calibrationFile;
+                if (!file || !isInAllowedFolder(file)) {
+                    throw new Error(`${step.name}: connect calibration or choose an authorized calibration JSON file.`);
+                }
+            }
+            if (element.id === 'stereo_pose_estimator') {
+                for (const name of ['modelFile', 'metadataFile']) {
+                    const file = step.params[name];
+                    if (!file || !isInAllowedFolder(file)) {
+                        throw new Error(`${step.name}: choose an authorized ${name} file before running.`);
+                    }
+                }
+            }
             const args = renderArgs(element.exec.args ?? [], { inputs, outputs, params: step.params, frameIndex: frame - 1 });
             await executeCli(resolveCli(element.exec.cli), args, { timeout: TOOL_TIMEOUT_MS }, log, `${step.name} · frame ${frame}`);
         }

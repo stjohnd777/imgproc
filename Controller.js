@@ -1,6 +1,10 @@
 // Handles user actions: updates the models, then asks the view to redraw. Vision actions go through
 // a runner, which decides *how* they run (local CLI vs REST).
 import { appendLog } from './tab_console.js';
+
+const WORKFLOW_HISTORY_LIMIT = 100;
+const WORKFLOW_PASTE_OFFSET = 32;
+
 export class Controller {
 
     constructor(model, view, runner, { sideBar, explorer, results, specs }) {
@@ -274,14 +278,113 @@ export class Controller {
         const element = this.specs.elements.specs?.find(item => item.file === elementFile)?.spec;
         if (!element) return;
         this.model.selectTab(tabId);
-        if (this.model.addWorkflowNode(tabId, element, x, y)) this.markWorkflowDirty(tabId);
-        this.view.render();
+        this.editWorkflow(tabId, () => {
+            const id = this.model.addWorkflowNode(tabId, element, x, y);
+            if (id) this.model.setWorkflowSelection(tabId, [id]);
+        });
     }
 
     moveWorkflowNode(tabId, nodeId, x, y) {
-        this.model.moveWorkflowNode(tabId, nodeId, x, y);
+        this.moveWorkflowNodes(tabId, { [nodeId]: { x, y } });
+    }
+
+    moveWorkflowNodes(tabId, positions) {
+        this.editWorkflow(tabId, () => this.model.moveWorkflowNodes(tabId, positions));
+    }
+
+    // Applies one graph change as one undo step; changes that leave the graph identical are not recorded.
+    editWorkflow(tabId, mutate) {
+        const tab = this.model.getTab(tabId);
+        if (!tab?.graph || tab.type !== 'workflow') return undefined;
+        const before = structuredClone(tab.graph);
+        const selection = [...(tab.selectedNodeIds ?? [])];
+        const result = mutate(tab);
+        if (JSON.stringify(before) !== JSON.stringify(tab.graph)) {
+            const history = tab.workflowHistory ??= { undo: [], redo: [] };
+            history.undo.push({ graph: before, selectedNodeIds: selection });
+            if (history.undo.length > WORKFLOW_HISTORY_LIMIT) history.undo.shift();
+            history.redo = [];
+            this.markWorkflowDirty(tabId);
+        }
+        this.view.render();
+        return result;
+    }
+
+    undoWorkflow(tabId) {
+        this.stepWorkflowHistory(tabId, 'undo', 'redo');
+    }
+
+    redoWorkflow(tabId) {
+        this.stepWorkflowHistory(tabId, 'redo', 'undo');
+    }
+
+    stepWorkflowHistory(tabId, from, to) {
+        const tab = this.model.getTab(tabId);
+        const snapshot = tab?.workflowHistory?.[from].pop();
+        if (!snapshot) return false;
+        tab.workflowHistory[to].push({ graph: tab.graph, selectedNodeIds: [...(tab.selectedNodeIds ?? [])] });
+        tab.graph = snapshot.graph;
+        tab.selectedEdgeId = null;
+        this.model.setWorkflowSelection(tabId, snapshot.selectedNodeIds);
         this.markWorkflowDirty(tabId);
         this.view.render();
+        return true;
+    }
+
+    // Selection changes are not undoable edits and do not mark the workflow modified.
+    setWorkflowSelection(tabId, nodeIds) {
+        this.model.selectTab(tabId);
+        this.model.setWorkflowSelection(tabId, nodeIds);
+        this.view.render();
+    }
+
+    selectAllWorkflowNodes(tabId) {
+        const tab = this.model.getTab(tabId);
+        if (tab?.graph) this.setWorkflowSelection(tabId, tab.graph.nodes.map(n => n.id));
+    }
+
+    // The clipboard is shared by all workflow tabs so nodes can be copied between workflows.
+    copyWorkflowSelection(tabId) {
+        const tab = this.model.getTab(tabId);
+        const clip = this.model.copyWorkflowNodes(tabId, tab?.selectedNodeIds ?? []);
+        if (!clip) return false;
+        this.workflowClipboard = { ...clip, pasteCount: 0 };
+        return true;
+    }
+
+    cutWorkflowSelection(tabId) {
+        if (!this.copyWorkflowSelection(tabId)) return false;
+        // Cut nodes are pasted back at their original place first, not offset.
+        this.workflowClipboard.pasteCount = -1;
+        this.deleteWorkflowSelection(tabId);
+        return true;
+    }
+
+    pasteWorkflowClipboard(tabId) {
+        const clip = this.workflowClipboard;
+        if (!clip?.nodes.length) return [];
+        clip.pasteCount += 1;
+        return this.editWorkflow(tabId, () =>
+            this.model.pasteWorkflowNodes(tabId, clip, WORKFLOW_PASTE_OFFSET * clip.pasteCount));
+    }
+
+    // Duplicate leaves the clipboard untouched.
+    duplicateWorkflowSelection(tabId) {
+        const tab = this.model.getTab(tabId);
+        const clip = this.model.copyWorkflowNodes(tabId, tab?.selectedNodeIds ?? []);
+        if (!clip) return [];
+        return this.editWorkflow(tabId, () => this.model.pasteWorkflowNodes(tabId, clip, WORKFLOW_PASTE_OFFSET));
+    }
+
+    // Deletes the selected nodes, or else the selected connection.
+    deleteWorkflowSelection(tabId) {
+        const tab = this.model.getTab(tabId);
+        if (tab?.selectedNodeIds?.length) {
+            const ids = [...tab.selectedNodeIds];
+            this.editWorkflow(tabId, () => this.model.removeWorkflowNodes(tabId, ids));
+        } else if (tab?.selectedEdgeId) {
+            this.removeWorkflowEdge(tabId, tab.selectedEdgeId);
+        }
     }
 
     // Opens the node's parameters, described by its element file.
@@ -295,9 +398,7 @@ export class Controller {
     }
 
     setWorkflowNodeParams(tabId, nodeId, params) {
-        this.model.setWorkflowNodeParams(tabId, nodeId, params);
-        this.markWorkflowDirty(tabId);
-        this.view.render();
+        this.editWorkflow(tabId, () => this.model.setWorkflowNodeParams(tabId, nodeId, params));
     }
 
     // Works out execution order and output paths without running anything.
@@ -390,16 +491,11 @@ export class Controller {
     }
 
     removeWorkflowNode(tabId, nodeId) {
-        const tab = this.model.getTab(tabId);
-        const count = tab?.graph?.nodes.length;
-        this.model.removeWorkflowNode(tabId, nodeId);
-        if (tab?.graph?.nodes.length !== count) this.markWorkflowDirty(tabId);
-        this.view.render();
+        this.editWorkflow(tabId, () => this.model.removeWorkflowNode(tabId, nodeId));
     }
 
     connectWorkflowPorts(tabId, from, to) {
-        if (this.model.addWorkflowEdge(tabId, from, to)) this.markWorkflowDirty(tabId);
-        this.view.render();
+        this.editWorkflow(tabId, () => this.model.addWorkflowEdge(tabId, from, to));
     }
 
     selectWorkflowEdge(tabId, edgeId) {
@@ -408,11 +504,7 @@ export class Controller {
     }
 
     removeWorkflowEdge(tabId, edgeId) {
-        const tab = this.model.getTab(tabId);
-        const count = tab?.graph?.edges.length;
-        this.model.removeWorkflowEdge(tabId, edgeId);
-        if (tab?.graph?.edges.length !== count) this.markWorkflowDirty(tabId);
-        this.view.render();
+        this.editWorkflow(tabId, () => this.model.removeWorkflowEdge(tabId, edgeId));
     }
 
     async openFolder() {

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "dense_stereo",
+  "name": "Dense Stereo",
+  "kind": "transform",
+  "category": "stereo",
+  "icon": "transform",
+  "summary": "Reconstruct a metric point cloud and mean visible-surface position/range/bearing from Disparity data and matching Stereo Rectification Q. Optional mask selects the target; no mask summarizes all accepted points.",
+  "inputs": [
+    { "name": "disparity", "type": "text" },
+    { "name": "calibration", "type": "text" },
+    { "name": "mask", "type": "image", "optional": true }
+  ],
+  "outputs": [
+    { "name": "positionEstimate", "type": "text" },
+    { "name": "points3d", "type": "pointcloud" }
+  ],
+  "params": {
+    "minDisparity": { "type": "number", "label": "Minimum disparity (px, exclusive)", "default": 0.01, "min": 0, "max": 512, "description": "Reject zero/near-zero disparities before reconstruction." },
+    "maxRangeM": { "type": "number", "label": "Maximum accepted range (m)", "default": 10000, "min": 0.000001, "max": 1000000000 },
+    "minPoints": { "type": "integer", "label": "Minimum points for position estimate", "default": 10, "min": 1, "max": 100000000, "step": 1, "description": "Fewer points produce status unavailable and null mean/range/bearing, not a false successful estimate." }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-dense-stereo/build/dense_stereo_cli",
+    "args": ["{in.disparity}", "{in.calibration}", "{out.positionEstimate}", "{out.points3d}", "{param.minDisparity}", "{param.maxRangeM}", "{param.minPoints}", "{in.mask}"]
+  }
+}

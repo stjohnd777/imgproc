@@ -12,6 +12,44 @@ workflow outputs to avoid lossy compression and preserve depth.
 Alpha is preserved by the filters and Add Noise; Image Diff emits opaque alpha.
 Concatenation preserves every channel, including alpha.
 
+## Application integration
+
+None of these CLIs is wired to the free-form image toolbar.
+Use the following workflow elements or run their executables directly:
+
+| CLI | Workflow element |
+|---|---|
+| distort_cli | [Distort Image](../../elements/distort.json) |
+| add_noise_cli | [Add Noise](../../elements/add_noise.json) |
+| bilateral_cli | [Bilateral Filter](../../elements/bilateral.json) |
+| clahe_cli | [CLAHE](../../elements/clahe.json) |
+| morphology_cli | [Morphology](../../elements/morphology.json) |
+| image_diff_cli | [Image Diff](../../elements/image_diff.json) |
+| hconcat_cli | [Horizontal Concat](../../elements/hconcat.json) |
+| vconcat_cli | [Vertical Concat](../../elements/vconcat.json) |
+
+The sections below give positional arguments, native defaults, and behavior
+for each executable. Distort requires K and the first four distortion values;
+only k3 defaults to zero. Image Diff and concatenation have no optional
+arguments or parameter defaults. Build conventions: [CLI reference](../README.md).
+
+### Executable examples
+
+Run from the repository root after building. Input names are illustrative;
+use existing compatible images. The distortion coefficients below are an
+example, not a physical camera calibration.
+
+```sh
+./cv-cli/cpp-image-effects/build/distort_cli ideal.png distorted.png 3200 3200 643.5 481.5 -0.1 0.01 0 0 0
+./cv-cli/cpp-image-effects/build/add_noise_cli input.png noisy.png 5 123 0
+./cv-cli/cpp-image-effects/build/bilateral_cli input.png smoothed.png 9 25 5
+./cv-cli/cpp-image-effects/build/clahe_cli input.png enhanced.png 2 8 8
+./cv-cli/cpp-image-effects/build/morphology_cli mask.png opened.png open ellipse 3 1
+./cv-cli/cpp-image-effects/build/image_diff_cli before.png after.png difference.png
+./cv-cli/cpp-image-effects/build/hconcat_cli left.png right.png side_by_side.png
+./cv-cli/cpp-image-effects/build/vconcat_cli top.png bottom.png stacked.png
+```
+
 ## Image concatenation
 
 ```text

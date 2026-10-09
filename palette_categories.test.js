@@ -12,20 +12,21 @@ const expected = {
     source: ['camera_source', 'dir_source', 'single_image_source', 'sync_camera_source',
         'physical_camera_source', 'synthetic_scene_source'],
     enhancement: ['gaussian', 'median', 'bilateral', 'clahe', 'stretch'],
-    geometry: ['undistort', 'remap'],
+    geometry: ['undistort', 'remap', 'stereo_calibrate', 'stereo_rectify'],
     segmentation: ['threshold', 'morphology', 'canny', 'sobel', 'contours'],
     feature: ['orb', 'sift', 'surf', 'fast', 'brisk', 'kaze', 'corners'],
-    stereo: ['disparity', 'simple_stereo'],
+    stereo: ['disparity', 'simple_stereo', 'dense_stereo'],
+    ai_ml: ['stereo_pose_estimator'],
     analysis: ['histogram', 'fourier', 'image_diff'],
     simulation: ['add_noise', 'distort'],
-    utility: ['convert', 'splitter', 'splitter_text', 'process_text', 'hconcat', 'vconcat'],
+    utility: ['convert', 'splitter', 'splitter3', 'splitter4', 'splitter_text', 'process_text', 'hconcat', 'vconcat'],
     sink: ['ui_view', 'ui_view_text', 'image_dir_sink', 'text_dir_sink', 'pointcloud_dir_sink']
 };
 
 test('all installed elements have the recommended palette groups with unchanged IDs', () => {
     assert.deepEqual(ELEMENT_CATEGORIES.map(section => section.title), [
         'Sources', 'Image Enhancement', 'Geometry & Calibration', 'Segmentation & Edges',
-        'Features', 'Stereo & 3D', 'Analysis', 'Simulation', 'Utilities', 'Sinks & Viewers'
+        'Features', 'Stereo & 3D', 'AI/ML', 'Analysis', 'Simulation', 'Utilities', 'Sinks & Viewers'
     ]);
     for (const [category, ids] of Object.entries(expected)) {
         assert.deepEqual(items.filter(item => elementCategory(item.spec) === category)

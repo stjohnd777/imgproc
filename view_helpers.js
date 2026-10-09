@@ -32,6 +32,7 @@ export const ELEMENT_CATEGORIES = [
     { category: 'segmentation', title: 'Segmentation & Edges' },
     { category: 'feature', title: 'Features' },
     { category: 'stereo', title: 'Stereo & 3D' },
+    { category: 'ai_ml', title: 'AI/ML' },
     { category: 'analysis', title: 'Analysis' },
     { category: 'simulation', title: 'Simulation' },
     { category: 'utility', title: 'Utilities' },

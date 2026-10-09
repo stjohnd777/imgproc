@@ -2,5 +2,31 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/cf" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/ci_lab" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/cs" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/ds" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/fm" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/hk" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/hs" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/lc" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/md" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/mm" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/sample_app" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/sbn" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/sc" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/sch_lab" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/apps/to_lab" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/cfe" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/libs/sample_lib" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/osal" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/psp" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/tools/cFS-GroundSystem" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/tools/cfs-cosmos-plugin" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/tools/commandline-tools" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/tools/eds" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/tools/elf2cfetbl" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/submodules/cFS/tools/tblCRCTool" vcs="Git" />
   </component>
 </project>

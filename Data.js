@@ -298,10 +298,68 @@ export class TabModel {
     }
 
     removeWorkflowNode(tabId, nodeId) {
+        this.removeWorkflowNodes(tabId, [nodeId]);
+    }
+
+    removeWorkflowNodes(tabId, nodeIds) {
+        const tab = this.getTab(tabId);
+        if (!tab?.graph) return;
+        const removed = new Set(nodeIds);
+        tab.graph.nodes = tab.graph.nodes.filter(n => !removed.has(n.id));
+        tab.graph.edges = tab.graph.edges.filter(e => !removed.has(e.from.nodeId) && !removed.has(e.to.nodeId));
+        if (!tab.graph.edges.some(e => e.id === tab.selectedEdgeId)) tab.selectedEdgeId = null;
+        tab.selectedNodeIds = (tab.selectedNodeIds ?? []).filter(id => !removed.has(id));
+    }
+
+    // `positions` maps node id to { x, y }; used to move a whole selection as one edit.
+    moveWorkflowNodes(tabId, positions) {
+        for (const [nodeId, { x, y }] of Object.entries(positions)) this.moveWorkflowNode(tabId, nodeId, x, y);
+    }
+
+    // Node and connection selections are exclusive, so Delete always has one unambiguous target.
+    setWorkflowSelection(tabId, nodeIds) {
+        const tab = this.getTab(tabId);
+        if (!tab?.graph) return;
+        const existing = new Set(tab.graph.nodes.map(n => n.id));
+        tab.selectedNodeIds = [...new Set(nodeIds)].filter(id => existing.has(id));
+        if (tab.selectedNodeIds.length) tab.selectedEdgeId = null;
+    }
+
+    // Copies nodes plus only the connections between them; connections to uncopied nodes are dropped.
+    copyWorkflowNodes(tabId, nodeIds) {
         const graph = this.getTab(tabId)?.graph;
-        if (!graph) return;
-        graph.nodes = graph.nodes.filter(n => n.id !== nodeId);
-        graph.edges = graph.edges.filter(e => e.from.nodeId !== nodeId && e.to.nodeId !== nodeId);
+        if (!graph) return null;
+        const ids = new Set(nodeIds);
+        const nodes = graph.nodes.filter(n => ids.has(n.id));
+        if (!nodes.length) return null;
+        return structuredClone({
+            nodes,
+            edges: graph.edges.filter(e => ids.has(e.from.nodeId) && ids.has(e.to.nodeId))
+        });
+    }
+
+    // Pastes copied nodes with new ids, offset from their original positions, and selects them.
+    pasteWorkflowNodes(tabId, clip, offset = 0) {
+        const tab = this.getTab(tabId);
+        if (!tab?.graph || !clip?.nodes?.length) return [];
+        const idMap = new Map(clip.nodes.map(node => [node.id, crypto.randomUUID()]));
+        for (const node of structuredClone(clip.nodes)) {
+            tab.graph.nodes.push({
+                ...node,
+                id: idMap.get(node.id),
+                x: Math.max(0, Math.round(node.x + offset)),
+                y: Math.max(0, Math.round(node.y + offset))
+            });
+        }
+        for (const edge of clip.edges ?? []) {
+            tab.graph.edges.push({
+                id: crypto.randomUUID(),
+                from: { ...edge.from, nodeId: idMap.get(edge.from.nodeId) },
+                to: { ...edge.to, nodeId: idMap.get(edge.to.nodeId) }
+            });
+        }
+        this.setWorkflowSelection(tabId, [...idMap.values()]);
+        return [...idMap.values()];
     }
 
     // `from` is { nodeId, port, direction: 'output' | 'telemetry' }; `to` is { nodeId, port }.
@@ -365,7 +423,9 @@ export class TabModel {
 
     selectWorkflowEdge(tabId, edgeId) {
         const tab = this.getTab(tabId);
-        if (tab?.graph) tab.selectedEdgeId = edgeId;
+        if (!tab?.graph) return;
+        tab.selectedEdgeId = edgeId;
+        if (edgeId) tab.selectedNodeIds = [];
     }
 
     // --- Internal helpers ---------------------------------------------------

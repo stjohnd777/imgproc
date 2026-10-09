@@ -5,12 +5,13 @@
   "kind": "transform",
   "category": "geometry",
   "icon": "transform",
-  "summary": "Applies coordinate mapping (cv::remap) to rectify epipolar lines or correct distortion.",
+  "summary": "Applies coordinate mapping (cv::remap) to rectify epipolar lines or correct distortion. Optional maps input overrides Map X and may contain both map_x/map_y.",
   "inputs": [
     {
       "name": "image",
       "type": "image"
-    }
+    },
+    { "name": "maps", "type": "text", "optional": true }
   ],
   "outputs": [
     {
@@ -52,7 +53,7 @@
     "args": [
       "{in.image}",
       "{out.image}",
-      "{param.map_x}",
+      "{in.maps|param.map_x}",
       "{param.map_y}",
       "{param.interpolation}",
       "{param.borderMode}"

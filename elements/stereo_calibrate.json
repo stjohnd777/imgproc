@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "stereo_calibrate",
+  "name": "Stereo Calibrate",
+  "kind": "transform",
+  "category": "geometry",
+  "icon": "transform",
+  "summary": "Calibrate an 8-bit stereo pair from checkerboard image folders paired by identical filename. Uses all accepted pairs in one batch; outputs K1/D1/K2/D2 and left-to-right R/T in meters.",
+  "inputs": [],
+  "outputs": [{ "name": "calibration", "type": "text" }],
+  "params": {
+    "leftDir": { "type": "folder", "label": "Left checkerboard images", "default": "" },
+    "rightDir": { "type": "folder", "label": "Right checkerboard images", "default": "", "description": "Pairs must have identical filenames in both folders; images must have equal resolution." },
+    "columns": { "type": "integer", "label": "Inner corner columns", "default": 9, "min": 3, "max": 30, "step": 1 },
+    "rows": { "type": "integer", "label": "Inner corner rows", "default": 6, "min": 3, "max": 30, "step": 1 },
+    "squareSizeM": { "type": "number", "label": "Checkerboard square size (m)", "default": 0.025, "min": 0.000001, "max": 10, "description": "Physical square edge length. This determines the baseline and reconstructed distance scale." },
+    "minPairs": { "type": "integer", "label": "Minimum accepted pairs", "default": 8, "min": 3, "max": 1000, "step": 1, "description": "Use varied board tilts, positions, and distances. More pairs alone do not guarantee a reliable calibration." }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-stereo-calibration/build/stereo_calibrate_cli",
+    "args": ["{param.leftDir}", "{param.rightDir}", "{out.calibration}", "{param.columns}", "{param.rows}", "{param.squareSizeM}", "{param.minPairs}"]
+  }
+}

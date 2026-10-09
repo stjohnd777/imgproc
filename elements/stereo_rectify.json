@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "stereo_rectify",
+  "name": "Stereo Rectification",
+  "kind": "transform",
+  "category": "geometry",
+  "icon": "transform",
+  "summary": "Generate horizontal stereo rectification maps and Q from K1/D1/K2/D2/R/T calibration. Connect maps to Remap; this element does not process images itself.",
+  "inputs": [{ "name": "calibration", "type": "text", "optional": true }],
+  "outputs": [
+    { "name": "rectification", "type": "text" },
+    { "name": "leftMaps", "type": "text" },
+    { "name": "rightMaps", "type": "text" }
+  ],
+  "params": {
+    "calibrationFile": { "type": "file", "label": "Calibration JSON (if input is not connected)", "default": "", "description": "Connected calibration takes precedence. Supports the documented schema for known synthetic geometry." },
+    "alpha": { "type": "number", "label": "Field of view alpha", "default": 0, "min": -1, "max": 1, "description": "-1: OpenCV default; 0: crop to valid pixels; 1: retain all source pixels. Output keeps the calibrated resolution." }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-stereo-calibration/build/stereo_rectify_cli",
+    "args": ["{in.calibration|param.calibrationFile}", "{out.rectification}", "{out.leftMaps}", "{out.rightMaps}", "{param.alpha}"]
+  }
+}

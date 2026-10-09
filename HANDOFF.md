@@ -1,194 +1,320 @@
 # Handoff
 
-**Project:** `/Users/danielst.johnst.john/development/electron/hello-world`
-**Branch:** `main` (last commit `4ef6628 init`; everything below is uncommitted)
-**Platform:** macOS, Electron 44, Node 24, ESM (`"type": "module"`), Homebrew OpenCV 4.11 at `/opt/homebrew` (contrib + nonfree, so SURF works)
+Updated: 2026-10-08.
 
----
+Latest scaffold: **Stereo Pose Estimator** (`stereo_pose_estimator`) in the
+new **AI/ML** palette category. Its C++17 project and workflow mapping accept
+left/right images, configured ONNX model/metadata files, and a pose JSON path.
+Model files require workflow authorization. The CLI deliberately exits with
+an explicit not-implemented error and writes no pose. ONNX Runtime is selected
+but not yet linked; inference, metadata parsing, training, and model export
+remain future work. See [CLI contract](cv-cli/cpp-stereo-pose/README.md).
 
-## Goal
+Workflow editor (latest, pending): click/Shift/Cmd-click and box selection,
+group drag, Cmd+A/C/X/V/D, Delete for nodes or a selected connection, Esc,
+and per-tab undo/redo (Cmd+Z, Shift+Cmd+Z, Ctrl+Y; 100 steps). The clipboard
+is shared across workflow tabs; paste keeps only connections internal to the
+copied nodes and assigns new IDs. Shortcuts are ignored while typing or with a
+dialog open. Covered by `workflow_editing.test.js` plus a browser check.
 
-An Electron desktop app for viewing images and running computer-vision processing, as a proof of concept for a robot's visual navigation. Plain JavaScript in an MVC structure, no frameworks. OpenCV work happens in small C++ command-line tools, one per algorithm, invoked per image.
+## Project and repository state
 
-The end goal is the **workflow graph**: drag elements onto a canvas, wire them together, and run the chain over a directory of frames as though a camera were feeding it. That now works end to end.
+- Project: `/Users/danielst.johnst.john/development/electron/hello-world`
+- Repository: `stjohnd777/imgproc`
+- Current branch: `main`
+- Latest commit at handoff: `b92f2e2` - stereo fix fractional detector coordinates with integer matching coordinates.
+- There are pending stereo calibration, dense disparity, and documentation
+  changes. Do not assume everything is committed.
+- Unrelated modifications currently include `.idea/vcs.xml` and an extra
+  blank line in `cv-cli/cpp-sift/sift_cli.cpp`. Preserve user changes.
+- The earlier Scene Composer work was done on `scene_composer`; the current
+  checkout is now `main`. Verify branch before future implementation.
 
-A REST/Docker (Crow C++) backend is planned later; `Controller.js` already has a `RestRunner` alongside `LocalRunner` for that reason.
+This replaces an outdated handoff that incorrectly said the elements were
+all untracked, Disparity had no implementation, and only SIFT exported JSON.
 
----
+## Goal and architecture
 
-## Architecture
+**Orbital Eyes** is an Electron/OpenCV workbench for synthetic spacecraft
+imagery, image-processing workflows, and visual navigation research for
+rendezvous/proximity operations (RPO).
 
-| File | Role |
+The user's focus is a Linux-hosted satellite visual-navigation component
+combining camera images and GNC estimates to produce range, bearing, and
+relative attitude. A cFS-independent navigation engine with a thin cFS adapter
+was discussed; no cFS workflow integration has been implemented.
+
+| File or directory | Role |
 |---|---|
-| `main.js` | Electron main process. Owns all filesystem and process access. |
-| `preload.cjs` | contextBridge. The only route from page to main. |
-| `Data.js` | Models: `TabModel`, `SideBarModel`, `ExplorerModel`, `SpecModel`, port types. |
-| `View.js` | All DOM building and event wiring. |
-| `Controller.js` | Coordinates model and view; `LocalRunner` / `RestRunner`. |
-| `index.html` | Markup, CSS, and the setup script (`TOOLBAR_ACTIONS`). |
-| `surface.html` / `surface-preload.cjs` | Separate 3D surface window and its own smaller bridge. |
-| `app.json` | Settings: `resultsDir`, `toolTimeoutMs`. |
-| `elements/` | One JSON per workflow element. **Untracked — add to git.** |
-| `cv-cli/cpp-*/` | One C++ tool each (16 tools). |
-| `cv-cli/common/cli_args.hpp` | Shared optional-argument parsing and range checking. |
-| `design.md` | Full design notes; kept current. |
+| [main.js](main.js) | Electron filesystem/process access, CLI allow-list, workflow planning/execution |
+| [preload.cjs](preload.cjs) | Renderer IPC bridge |
+| [Data.js](Data.js) | Tab/sidebar/spec models and port compatibility |
+| [Controller.js](Controller.js) | Model/view coordination and local/REST runners |
+| [View.js](View.js) | UI, workflow canvas, schema-driven configuration dialogs |
+| [index.html](index.html) | Application markup, styles, setup and toolbar |
+| [app.json](app.json) | Results, timeout, model catalog and saved-scene settings |
+| [elements/](elements/) | Workflow element declarations |
+| [cv-cli/](cv-cli/) | Native OpenCV executables and documentation |
+| [SynC/](SynC/) | Blender scene generation, models and tests |
+| [scene_composer.js](scene_composer.js) | Three.js scene viewport/editor |
+| [scene_composer_document.js](scene_composer_document.js) | Scene transforms, validation, camera aiming |
+| [scene_composer_storage.js](scene_composer_storage.js) | Configured model catalog and scene CRUD |
 
----
+Environment used: macOS, Electron 44, Node 24, ESM JavaScript, Homebrew
+OpenCV 4.11, Blender 4.1.1 at
+`/Applications/Blender.app/Contents/MacOS/Blender`, Three.js 0.180.
+SURF availability depends on the installed OpenCV contrib/nonfree build.
 
-## Key decisions
+## Established behavior
 
-**1. One parameter declaration drives everything.**
-Each toolbar action's parameters are declared once in `CLI_ACTIONS` in `main.js` with type, label, default and range. That single declaration produces the dialog (the page fetches it via `window.vision.actions()`), validates the values, and fixes argument order. Adding a parameter is one line in `main.js`, one in the C++, one in the element file — no dialog code.
+- Workflow edges carry artifact file paths; one output can feed several inputs.
+- Runs persist under the configured results directory; scratch is separate.
+- Main reads trusted installed element definitions rather than accepting
+  executable definitions from the renderer.
+- Processes execute without a shell. Files/folders require authorization;
+  manually entering a path does not automatically grant access.
+- Workflow documents preserve parameters and reconstruct ports from current
+  element definitions when loaded.
+- Shared schema dialogs support numeric, enum, boolean, path, camera-profile,
+  text, and multiline code settings.
+- UIView and UIViewText open workflow artifacts; preview tabs can be reused.
+- Results management supports inspecting runs and constrained deletion.
+- The free-form image toolbar is separate from workflow execution.
 
-Types: `number`, `integer`, `odd` (OpenCV kernels), `boolean` (passed as `1`/`0`), `enum`.
+## Previously completed features
 
-**2. Workflow nodes reuse the same dialog.**
-`View.showSchemaDialog` builds the form. `showActionDialog` (toolbar) and `showNodeParamsDialog` (node gear button) are thin callers. `elementParamSpecs` converts an element's `params` object into form specs. Difference: toolbar declarations come from `main.js` and values are remembered per action; node declarations come from the element file and values are stored on the node.
+### Synthetic scenes and Scene Composer
 
-Three dialogs stay hand-written because their fields are conditional or sourced elsewhere: `STRETCH` (fields depend on mode), `UNDISTORT` (prefilled from a camera spec), `DISPARITY`.
+- Universal JSON-driven Blender renderer with static, linear-motion, and
+  camera-rig trajectory support.
+- Model catalog from `app.json` `modelsDir` (default `SynC/models`).
+- Saved scenes from `scenesDir` (default `~/data/workflows/scenes`).
+- Local GLB/Draco loading, drag/drop placement, orbit/pan/zoom, translation/
+  rotation gizmos, numeric poses and rigid row-major local-to-world T matrices.
+- Scene save/load/import/delete, advanced JSON, undo/redo, Blender preview.
+- Camera **Aim at Target** preserves position and rotates toward a model
+  origin; this is one-time aiming, not a tracking constraint.
+- Resizable inspector divider and larger vertically resizable T editor.
+- Actual Electron/Blender verification previously loaded 27 models and
+  produced a visible preview; pose matrices were compared against Blender.
+- Unknown scene fields/trajectories are preserved. Static previews remove
+  trajectory only from their render snapshot.
 
-**3. Workflow steps pass data as files.**
-Every tool is already a process that reads a file and writes a file, so edges become paths. This also makes runs inspectable and comparable afterwards.
+Known issue from the inspector change: its body ResizeObserver was not retained
+and disconnected on disposal. Do not silently bundle this into unrelated work.
 
-```
-<resultsDir>/runs/<workflow>/<run>/frames/NNNN/NN_<node>__<port>.<ext>
-<resultsDir>/scratch/session-<pid>/                      toolbar output
-```
+### Utilities and image effects
 
-Files are named after the **producing** node and port, not the edge, because a node can have several outputs (SIFT writes `__keypoints.json` and `__preview.png`) and one output can feed several inputs. `NN` is execution order, so a frame folder reads top to bottom as the graph ran. Extensions come from port type (image/disparity → png, keypoints/matches → json, pointcloud → ply).
+- Process Text runs synchronous JSON-in/JSON-out JavaScript in a worker with
+  timeout/size checks. It is for trusted scripts, not a security sandbox.
+- SplitterText forwards an unchanged text artifact to two outputs.
+- Splitter 3 / Splitter 4 (`splitter3`, `splitter4`) forward one image to
+  three or four outputs with the same passthrough; see `splitter_multi.test.js`.
+- Horizontal/Vertical Concat preserve exact image pixels and alpha, require
+  matching depth/channels and matching non-concatenated dimensions.
+- Image Diff uses `cv::absdiff`, not addition. An earlier challenged output
+  exactly matched frames 102 and 106 of the linear-motion sequence.
+- Several effects support 8/16-bit images; many older CLIs still load 8-bit
+  color. Consult each README rather than assuming uniform depth support.
 
-**4. Frames are paced by completion, not `setInterval`.**
-A plain interval overlaps once a frame exceeds its slot, and tools take 40–500 ms. The runner waits out whatever remains of the slot after the frame finishes, and counts the frame **late** when nothing remains. The summary reports the late count.
+## Latest stereo work
 
-**5. Runs are kept; only scratch is deleted on quit.**
-Earlier the whole results folder was wiped on `will-quit`, which destroyed the record runs exist to provide.
+### Sparse stereo coordinate bug - committed
 
-**6. Security boundary.**
-- `preload.cjs` exposes only `vision`, `explorer`, `specs`, `workflow`.
-- `CLI_ACTIONS` is an allow-list; `execFile` with no shell.
-- Every parameter is range-checked in main before becoming an argument.
-- Element definitions are read from `elements/` **by main**, never accepted from the page — the page chooses *which* element, never what executes. The resolved binary must be inside `cv-cli/`.
-- All paths checked against `allowedFolders`. **Choosing a folder in the system dialog is what grants access**, which is why folder and file parameters are read-only with a Browse button rather than typeable.
+[simple_stereo_cli.cpp](cv-cli/cpp-simple-stereo/simple_stereo_cli.cpp) is a
+**sparse NCC block matcher**, not a descriptor matcher:
 
----
+1. Round left detector coordinates and extract an integer-centered patch.
+2. Search integer right-image locations over the disparity range/vertical band.
+3. Select the best normalized correlation and triangulate.
 
-## What was built this session
+The bug mixed fractional left detector coordinates with integer matching
+coordinates. Left output coordinates now use the actual rounded patch center;
+disparity and all triangulated axes use consistent coordinates.
+Identical-image matches produce zero disparity and null 3D, and do not enter
+the point cloud or position average.
 
-**C++ (`cv-cli/`)**
-- New tools: `median`, `gaussian`, `stretch`, `undistort`, `remap`, `convert`, `simple_stereo`.
-- 12 existing tools gained their real OpenCV parameters (previously hardcoded): SURF, SIFT, ORB, FAST, KAZE, BRISK, Corners, Contours, Canny, Histogram, Sobel.
-- New `common/cli_args.hpp` — shared parsing/range-checking; every CMakeLists gained an include path for it.
-- `sift_cli` writes a keypoints JSON as argument 3 (pass `""` to skip).
-- `stretch_cli` reads with `IMREAD_UNCHANGED`; every other tool uses `IMREAD_COLOR` and will silently crush 16-bit input to 8-bit.
+Regression: [simple_stereo.test.mjs](cv-cli/test/simple_stereo.test.mjs).
+Both tests failed before the fix and passed afterward. The matcher remains
+integer-pixel; subpixel refinement was recommended but is not implemented.
 
-**Renderer**
-- Toolbar: `MEDIAN`, `GAUSSIAN`, `STRETCH`, `UNDISTORT`, `SURFACE` added.
-- Schema-driven dialogs replaced the hand-written Threshold/Median/Gaussian ones.
-- Workflow nodes: gear button → parameter dialog.
-- Workflow artifact preview: after a frame completes, image/disparity outputs show an eye action and JSON-like outputs show a file action in the node header. Actions open/select image tabs or read-only JSON tabs for the latest completed frame; other types such as PLY are not yet viewable this way.
-- Tab rename by double-click; workflow names kept unique (they become folder names).
-- Status bar: **Plan run**, **Run**/**Stop**, live progress.
-- Node execution visualizer: live cyan pulsing border/glow, illuminated header, and spinning gear icon on whichever node is actively processing a step.
-- Completion alert: modal dialog on workflow finish/stop with frame counts, lateness, output path, and a **View Results** shortcut button.
-- Results viewer: navigation ribbon icon (folder with graph) listing finished runs under `resultsDir` from `app.json`.
-- Results management: right-click a workflow/run folder and confirm **Delete Workflow** or **Delete Run**, or select it and press Delete/Backspace. Empty workflow/run folders remain visible. The main process only deletes real workflow/run directories under `resultsDir/runs`, refuses symlinks/frame-level paths, and blocks deletion while a run is active.
-- Surface view: intensity as a 3D height field in a separate window, plain canvas 2D (no 3D library), painter's algorithm, viridis/grayscale/heat ramps, drag to rotate, shift-drag to pan, wheel to zoom.
-- JSON Spec Editor Tab: Camera (and algorithm) specs open directly in editor tabs from the sidebar via open button, row double-click, or title click. Supports live JSON syntax checking, dirty indicators, 2-space Tab indent, format, revert, and disk saving with `Cmd+S` / `Ctrl+S` that immediately hot-reloads spec models across the application.
+Native baseline is **millimeters**; exported point3d/PLY/position values are
+meters. Native fx defaults to **1000 px**, fy to the selected fx, while the
+workflow defaults to **3200 px** for both.
 
-**Main**
-- `prepareWorkflowRun` — topological sort, artifact paths, problem reporting, no execution.
-- `runWorkflow` / `stopWorkflow` — frame loop, progress events (`started`, `step`, `frame`, `finished`, `failed`), one run at a time.
-- Frame events include each node's output-port artifact refs, used by the renderer's latest-frame artifact actions. `workflow:openArtifact` only serves paths under `allowedFolders` and supports image files and JSON.
-- Builtins: `dir_source`, `single_image`, `sync_camera_source`, `passthrough`, `save_to_dir`, `save_text_to_dir`, `save_pointcloud_to_dir`.
-- Workflow documents: Open, Save, and Save As use versioned `navlib-workflow` JSON. Files contain node IDs/element IDs/params/positions and edges; ports are rebuilt from the current element catalog on open. Save As defaults to `resultsDir/workflows/`. Saved local paths do not grant access; opening warns when paths need to be reselected in node settings.
-- `app.json` settings with `~` expansion and fallback.
-- Folder/file choosers for workflow parameters.
+The user's supplied average point `[0.6514545454545455,
+-1.2269917355371902, 95.41818181818182]` has magnitude
+**95.42829414398788 m**. It is 4.571706 m below 100 m. Its cause has not been
+established by per-point comparison to truth; a surface-point average is not
+necessarily the spacecraft model origin.
 
-**Elements** — one JSON per tool plus sources/sinks/flow, all with `exec` blocks. Includes text and point-cloud directory sinks.
+### Dense Disparity - pending changes
 
-**Stereo output** — `simple_stereo_cli` triangulates internally in millimeters, then writes the ASCII PLY cloud, detailed matches/points JSON, `positionEstimate` JSON, and preview position in meters. Matches JSON also retains explicit `point3d_mm` fields. `keypoints` and `matches` ports extend the `text` type so either can connect to the text directory sink.
+- [Disparity element](elements/disparity.json) now runs
+  [disparity_cli.cpp](cv-cli/cpp-disparity/disparity_cli.cpp), using StereoSGBM.
+- Inputs: already-rectified equal-sized 8-bit images.
+- Editable range, block size, uniqueness and speckle parameters.
+- Existing `disparity` output remains an 8-bit visualization.
+- New `data` text output contains row-major disparities in **pixels**,
+  invalid values as null, dimensions, settings, and valid count.
+- OpenCV fixed-point values are decoded by division by 16.
+- Numeric data, not the visualization, must be used for reconstruction.
+- The separate free-form **DISPARITY** toolbar dialog is still a placeholder;
+  it does not execute the dense CLI.
 
-**Synthetic lighting** — `sync_camera_source` forwards azimuth/elevation to Blender when it regenerates frames. If rendered frames already exist and the node's **Re-render in Blender before running** setting is off, the workflow reuses those files; changing lighting settings alone does not relight them. Default sun azimuth is now 180 degrees (camera side; cameras look along global +Y) and elevation is 30 degrees (above the target). Existing workflow nodes keep their saved values.
+### Stereo calibration and rectification - pending changes
 
----
+Added under **Geometry & Calibration**:
 
-## Tests run
+- [Stereo Calibrate](elements/stereo_calibrate.json):
+  no image input ports; configured left/right checkerboard folders processed
+  as one batch. Pairing requires identical filenames.
+  Defaults: 9x6 **inner corners**, 0.025 m squares, minimum 8 accepted pairs.
+  Estimates K1/D1/K2/D2, then stereo R/T with intrinsics fixed.
+  Output reports baseline, RMS pixels, accepted/rejected pairs.
+- [Stereo Rectification](elements/stereo_rectify.json):
+  optional connected calibration text or configured saved JSON file.
+  Produces `rectification` JSON (Q/R1/R2/P1/P2/ROIs/metadata),
+  `leftMaps`, and `rightMaps` OpenCV FileStorage JSON.
+- [Remap](elements/remap.json) now has an optional `maps` text input.
+  Connected maps override Map X; existing presets/files still work.
+- Workflow planning honors `optional` inputs; UI labels them as optional.
+- [workflow_args.js](workflow_args.js) supports
+  `{in.maps|param.map_x}` and equivalent calibration-file fallback.
+- Main checks authorized calibration folders and fallback calibration files.
 
-App-level checks were headless via Electron with a hidden `BrowserWindow`, driving the real UI (synthetic drag-and-drop, pointer drags between ports, dialog submits) and reading results from the DOM and disk. Throwaway scripts live in `/tmp` and are **not** part of the repo.
+Connections:
 
-| Area | Result |
-|---|---|
-| All 19 toolbar actions with declared defaults | pass |
-| Empty params fall back to defaults | pass |
-| Out-of-range, wrong-type, injection (`"30; rm -rf /"`) | all rejected |
-| Dialogs: fields, types, Defaults button, value memory | pass |
-| All 23 element `exec` templates executed for real | pass |
-| SIFT parameters take effect | `nfeatures` 0/50/200 → 4858/50/200 keypoints |
-| Node gear dialogs (number, enum, camera, boolean, empty) | pass |
-| Folder/file choosers, `createDirectory` for sink | pass |
-| Unchosen folder refused | pass |
-| Run: dir → stretch → canny → sink, 5 frames | 10 intermediates + 5 sink files |
-| Frame order follows sorted filenames | proven with alternating distinct inputs |
-| Stop mid-run; second concurrent run refused | pass |
-| `app.json` missing / malformed / override | pass |
-| Runs survive quit, scratch deleted | pass |
-| Results deletion is constrained to workflow/run directories, confirms in UI, and refreshes tree | implementation added; native filesystem deletion not yet exercised |
-| Ingress frame 1 stereo scale: same 587 matches at `fx=1000` and `fx=3200`; mean Z changes from 29.5 m to 94.4 m against 100 m ground truth | pass; confirms the earlier 1000 px focal default was the dominant scale error |
-| Workflow model/controller save flow: Save As, dirty tracking, Save, Open in new tab | pass with mocked IPC and a connected source-to-sink graph |
-| Workflow artifact controller: open image, open JSON, reuse existing artifact tab | pass with mocked IPC |
-
-Serialized stereo coordinates use meters in a rectified camera frame: `X` is image-right, `Y` is image-down, and `Z` is forward. Internally the CLI computes millimeters because the baseline parameter is in mm. For the Blender ingress rig, forward `+Y` maps to stereo `+Z`; the scene origin target at 100 m should therefore be near `[0, 0, 100]` m (about `[0.06, 0, 100]` m from the left camera). The average of sparse feature positions is not guaranteed to be at the target origin because the spacecraft is rotated and detected features are not symmetrically distributed. Validate per-point errors against ground truth before treating the mean as the spacecraft center.
-
-**Testing note:** `node --check` does **not** catch a missing closing brace in these ESM renderer files. Verify with `node --input-type=module -e "import('./View.js')"` *and* by loading `index.html` in a hidden window with `console-message` logged. A syntax error in `View.js` renders the whole UI blank.
-
----
-
-## Unresolved issues
-
-1. **`loop: true` on Image Directory does nothing.** Without a frame cap it would run forever. Needs either a max-frames parameter or an explicit loop-until-stopped mode.
-2. **Runs still accumulate unless manually deleted** under `~/data/navlib/runs`; Results supports deleting a workflow or run, but no retention policy or bulk cleanup exists.
-3. **16-bit input is degraded by every tool except `stretch`.** They use `IMREAD_COLOR`. Stretch first, or convert the others to `IMREAD_UNCHANGED`.
-4. **`elements/` and the new `cv-cli` tools are untracked.** Needs `git add`. `review.md` is also untracked and unexamined.
-5. **Legacy Camera Source and Disparity cannot run** in a workflow — no `exec`. `sync_camera_source` is the runnable synthetic stereo source; the Disparity tool is still not written.
-6. **Only SIFT emits structured data.** Other detectors output an annotated preview image, so they are not usable as real feature sources downstream.
-7. **Feature-detector elements were bulk-edited by script** (`/tmp/sync-elements.mjs`); parameter *order* matches each CLI but only the `exec` round-trip was verified, not each parameter's effect.
-8. **`threshold.json` has a boolean `setBandValue`** but the tool wants `1`/`0`. The runner converts booleans; the toolbar path is separate and already correct.
-9. **No CSP**; the page still uses an inline script (`index.html`). Moving it to `app.js` was discussed, not done.
-10. **Surface view reads the displayed 8-bit image**, so raw 16-bit frames look flat. Stretch first.
-11. **Gear replaced the element-kind icon** in node headers. Kind is still shown by colour/border.
-12. **macOS fullscreen fix is unverified visually.** The surface window is no longer a child window (a child over a fullscreen parent blanks the Space on close). Space/compositing behaviour is not observable headlessly — `capturePage` renders offscreen and the window reports healthy while the screen is black. Needs a human to confirm.
-13. **Docker `build.sh` failure** was never investigated.
-14. **The user's `space/` stereo run has not been validated yet.** The 100 m check above used `SynC/scenes/ingress` frame 1 and nominal Blackfly intrinsics. Compare `space/` frame 1's saved matches/point cloud to its own camera settings and ground truth; do not infer correctness from the average alone.
-
----
-
-## Next steps
-
-1. **Validate the user's `space/` run** (issue 14): check saved `fx`, `fy`, baseline, image dimensions, disparity distribution, and compare individual reconstructed points with first-frame ground truth.
-2. **Commit.** `elements/`, `cv-cli/common/`, the new tools, `app.json`, `surface.html`, `surface-preload.cjs`, and current SynC source/config files are untracked.
-3. **Decide the `loop` semantics** (issue 1) — smallest gap between here and continuous running.
-4. **Browse historical run artifacts in the UI.** Node header actions show only the latest frame while a workflow tab is open; the Results view still does not navigate a run's per-node/per-frame outputs.
-5. **Per-node run state on the canvas** — idle/running/failed, and the failing step highlighted.
-6. **16-bit handling** (issue 3) — decide whether tools read unchanged.
-7. **Keypoints from the other detectors** (issue 6) if features are to flow between nodes.
-8. **Disparity tool**, then wire the existing dialog to it.
-
----
-
-## Running it
-
-```bash
-cd /Users/danielst.johnst.john/development/electron/hello-world
-npm start                      # devtools open automatically
-
-# build one tool
-cmake -S cv-cli/cpp-canny -B cv-cli/cpp-canny/build -DCMAKE_BUILD_TYPE=Release
-cmake --build cv-cli/cpp-canny/build
-
-# watch a run
-find ~/data/navlib/runs -type f | tail
+```text
+Stereo Calibrate.calibration -> Stereo Rectification.calibration
+Stereo Rectification.leftMaps  -> Left Remap.maps
+Stereo Rectification.rightMaps -> Right Remap.maps
+Left image  -> Left Remap.image  -> Disparity.left
+Right image -> Right Remap.image -> Disparity.right
 ```
 
-**Note:** renderer edits need a reload (Cmd+R) or restart — Electron loads the JavaScript once at startup. Several "the button isn't there" moments this session were a stale window.
+Calibration schema:
 
-`cv-cli/cpp-sobel/build` was a stale CMake cache copied from another project and had to be deleted; if a tool refuses to configure, delete its `build/` first.
+- `schemaVersion: 1`, `type: "stereo_calibration"`.
+- `imageWidth`, `imageHeight`, `lengthUnits: "m"`.
+- `cameraAxes: "x_right_y_down_z_forward"`.
+- `transformConvention: "point_C2 = R * point_C1 + T"`.
+- K1/K2/R: nested 3x3 arrays; D1/D2: flat five-coefficient arrays
+  `[k1,k2,p1,p2,k3]`; T: nested **3x1** array.
+- Right camera physically to the right of a parallel left camera means
+  `T = [[-baseline],[0],[0]]`, not positive baseline.
+- Q outputs meters in the **rectified left camera frame**.
+- Current chain rejects vertical/reversed stereo because dense matching
+  expects horizontal nonnegative left-minus-right disparity.
+- Standard pinhole distortion only; fisheye and fixed pre-calibrated
+  intrinsics for checkerboard calibration are not supported yet.
+- Run calibration as a separate setup workflow: a no-input batch node in
+  a multi-frame graph currently repeats once per frame.
+
+Known synthetic geometry can bypass checkerboard calibration using the
+documented calibration JSON. Do not pass Blender world poses directly.
+Image resolution, pixel-center convention, camera axes, and relative transform
+must be reconciled. Blender helpers use width/2,height/2 while nominal camera
+profiles use (width-1)/2,(height-1)/2; verify before exporting calibration.
+
+Detailed schema/examples: [stereo calibration README](cv-cli/cpp-stereo-calibration/README.md).
+
+### CLI documentation - latest completed task
+
+Every native CLI project now has a README covering purpose, arguments/defaults,
+example usage, workflow support, and actual free-form toolbar availability.
+Multi-executable projects have sections per tool.
+
+Index: [cv-cli/README.md](cv-cli/README.md).
+Coverage verified: **24 project READMEs**, **31 workflow CLI entries**,
+**89 local links**. Documentation corrected Simple Stereo's native focal
+default and fixed baseline-unit wording. No executable behavior changed in
+the documentation task.
+
+## Validation
+
+Latest addition: **Dense Stereo** (`dense_stereo` / `dense_stereo_cli`) now
+reconstructs numeric Disparity `data` using Stereo Rectification `rectification`.
+Optional rectified-left mask selects the target. Outputs are positionEstimate
+JSON (mean surface position, range/bearing, angles, counts and range statistics)
+and points3d PLY in meters. Insufficient accepted points yield explicit
+unavailable status and null aggregate measurements.
+See [Dense Stereo README](cv-cli/cpp-dense-stereo/README.md).
+Native build succeeded; latest focused suite passed **27 tests**, including
+actual StereoSGBM/Q reconstruction of a 15 m plane and known 100 m reprojection.
+Browser verified parameter saving.
+
+Generated rectification maps already include undistortion: remove separate
+Undistort before Remap when using these maps. Sparse Corners must run on the
+rectified left image and connect keypoints to Simple Stereo.leftKeypoints.
+Independent Physical Camera batches do not guarantee synchronized exposures.
+
+- New native StereoSGBM and stereo calibration projects built successfully
+  through VS Code CMake Tools.
+- Latest combined stereo/shared-workflow suite: **39 passed, 0 failed**.
+- Calibration tests generate perspective checkerboards, recover known
+  baseline within tolerance, and exercise actual workflow execution.
+- Q reconstructs a known 100 m point correctly.
+- Generated maps were passed through existing Remap with exact identity
+  pixel preservation for the ideal parallel case.
+- Browser checks verified calibration/rectification dialogs save parameters
+  and reject invalid alpha; Disparity dialog rejects invalid range settings.
+- No reported editor errors for changed implementation files.
+- README coverage/link check and `git diff --check` passed.
+
+Focused test command, after building the native projects:
+
+```sh
+node --test cv-cli/test/stereo_calibration.test.mjs \
+  cv-cli/test/disparity.test.mjs cv-cli/test/simple_stereo.test.mjs \
+  palette_categories.test.js ui_view.test.js ui_view_text.test.js \
+  splitter_text.test.js process_text.test.js view_helpers.test.js
+```
+
+The editor test runner did not discover these Node built-in tests; terminal
+`node --test` was used. Native fixture generator is built with BUILD_TESTING.
+Use VS Code CMake Tools for native builds. Its settings were temporarily
+switched for the new projects and restored to:
+
+```json
+{
+  "cmake.sourceDirectory": "${workspaceFolder}/cv-cli/cpp-usb-camera",
+  "cmake.buildDirectory": "${workspaceFolder}/build/cpp-usb-camera"
+}
+```
+
+## Next work and cautions
+
+1. **Dedicated robust Stereo Range & Bearing remains proposed.**
+   Dense Stereo now implements mean visible-surface range/bearing, not a
+   model-center or robust navigation estimator.
+   Recommended ID/executable: `stereo_range_bearing` /
+   `stereo_range_bearing_cli`. Inputs would be numeric disparity and matching
+   rectified calibration/Q, with optional target mask/ROI.
+   Outputs: representative position, range, bearing unit vector,
+   azimuth/elevation, counts, range statistics, explicit status/frame/units.
+   Visible-surface estimates must not be labeled spacecraft-center estimates.
+   Point spread is not automatically navigation uncertainty.
+2. Consider subpixel sparse NCC and confidence/consistency rejection,
+   validated against known fractional shifts and depth.
+3. Free-form DISPARITY toolbar execution still needs implementation.
+4. Validate long-range stereo against actual per-point ground truth and
+   distinguish depth, camera range, and model-origin range.
+5. Preserve pending work; do not commit or revert unrelated changes.
+   No commit was requested for the latest implementation/documentation tasks.
+6. Historical fullscreen/retention/loop issues need fresh investigation before
+   claiming they remain bugs; the old handoff was not reliable current evidence.
+
+## Running and communication
+
+Run `npm start` from the project root. Restart/reload Electron after changes;
+installed element definitions may otherwise remain stale.
+
+Use plain-text formulas and code-block matrices in chat. The user's chat
+renderer did not display LaTeX reliably. Markdown preview extensions help
+documents, not necessarily chat. Markdown Preview Enhanced and Markdown All
+in One were suggested, but no extensions were installed by the assistant.
+
+Earlier conversation details were summarized during context compaction.
+This handoff records verified current work and important decisions so future
+sessions do not rely on the obsolete initial snapshot.

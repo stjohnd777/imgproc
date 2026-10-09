@@ -626,7 +626,34 @@ including tab/sidebar changes and element reloads, but reset on app restart.
 denoising) and **CLAHE** (local luminance contrast enhancement).
 **Morphology** (erode/dilate/open/close/gradient) is under **Segmentation & Edges**.
 Distort Image and Add Noise are under Simulation; Undistort and Remap are
-under Geometry & Calibration. Convert and Splitter are under Utilities.
+under Geometry & Calibration. Convert and Splitter are under Utilities, along
+with **Splitter 3** (outputs `a`–`c`) and **Splitter 4** (outputs `a`–`d`).
+They use the same zero-copy passthrough, so each branch receives the original
+image file; they are conveniences for wiring and labeling wider fan-outs.
+
+**Stereo Calibrate** and **Stereo Rectification** are also under
+**Geometry & Calibration**. Calibrate reads paired checkerboard folders
+(identical filenames), inner corner counts, and square size in meters, producing
+K1/D1/K2/D2 and left-to-right R/T. Rectification accepts that connected output
+or a saved calibration JSON for known synthetic geometry and produces Q,
+projection/rectification matrices, valid ROIs, and two remap files.
+Connect `leftMaps`/`rightMaps` to the optional `maps` input on separate Remap
+nodes, then feed the rectified images to Disparity. Existing Remap file/preset
+configuration remains available when `maps` is disconnected. Use images at
+the calibrated resolution and save matching maps/Q together.
+Run physical calibration separately from mission-image processing.
+Generated maps already undistort and rectify: connect raw camera images directly
+to Remap, without a preceding Undistort. Detect sparse keypoints on the rectified
+left image and wire them to Simple Stereo's `leftKeypoints` input.
+For dense reconstruction, connect Disparity's numeric `data` and Stereo
+Rectification's `rectification` to **Dense Stereo** under **Stereo & 3D**.
+It produces a PLY cloud and mean visible-surface position/range/bearing.
+An optional rectified-left target mask excludes background.
+See [Dense Stereo](../cv-cli/cpp-dense-stereo/README.md) for measurement semantics
+and why independent Physical Camera batches do not guarantee stereo synchronization.
+See [Stereo calibration and rectification](../cv-cli/cpp-stereo-calibration/README.md)
+for the JSON schema, conventions, capture requirements, and limitations.
+
 The three new filters are built with the
 `image-effects` native project and use the same image input/output workflow
 ports. See [filter parameters and image-depth support](../cv-cli/cpp-image-effects/README.md#bilateral-filter).

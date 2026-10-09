@@ -2,6 +2,26 @@
 
 Sparse feature-based stereo matching and 3D point triangulation for horizontally rectified stereo image pairs. For complete step-by-step instructions on calibrating physical cameras and computing rectification maps, see [CALIBRATION.md](CALIBRATION.md).
 
+## Application integration and example
+
+Workflow: [Simple Stereo](../../elements/simple_stereo.json), under Stereo & 3D.
+Inputs are left/right rectified images and left keypoints JSON; outputs are
+preview, matches, points3d, and positionEstimate.
+Free-form toolbar: **not available**. The DISPARITY button does not run this CLI.
+Build and positional conventions: [CLI reference](../README.md).
+
+Example from the repository root, using a 120 mm baseline and 3200 px focal lengths:
+
+```sh
+./cv-cli/cpp-simple-stereo/build/simple_stereo_cli \
+  left.png right.png left.keypoints.json preview.png matches.json points.ply \
+  64 4 0 0.6 120 3200 3200 643.5 481.5 position.json
+```
+
+Supply your measured rectified intrinsics rather than assuming these example
+values. Native CLI fx defaults to **1000**, whereas the workflow defaults to
+**3200**; native fy defaults to the chosen fx. Images are loaded as 8-bit color.
+
 ---
 
 ## 1. Overview & Conceptual Architecture
@@ -76,7 +96,9 @@ $$X = \frac{(u_L - c_x) \cdot Z}{f_x} = \frac{(u_L - c_x) \cdot B}{d}$$
 $$Y = \frac{(v_L - c_y) \cdot Z}{f_y} = \frac{(v_L - c_y) \cdot B \cdot (f_x / f_y)}{d}$$
 
 - If baseline $B$ is specified in millimeters ($\text{mm}$), $X, Y, Z$ are in millimeters.
-- If baseline $B$ is specified in meters ($\text{m}$), $X, Y, Z$ are in meters.
+- This CLI always expects `baselineMm` in millimeters; do not pass meters.
+  Exported `point3d`, PLY, and position estimates are converted to meters;
+  `point3d_mm` retains millimeters.
 
 ---
 
@@ -108,8 +130,8 @@ simple_stereo_cli <imageL> <imageR> <leftKeypointsJson> <outPreview> <outMatches
 | `9` | `vTolerance` | `1.0` | `0.0 .. 10.0` | Vertical tolerance band in pixels ($\pm v_{\text{tol}}$) to handle minor calibration imperfections. |
 | `10` | `minCorrelation` | `0.60` | `-1.0 .. 1.0` | Minimum normalized cross-correlation score to accept a match. |
 | `11` | `baselineMm` | `120.0` | `> 0.0` | Physical baseline distance between left and right optical centers in mm. |
-| `12` | `fx` | `3200.0` | `> 0.0` | Rectified horizontal focal length in pixels (nominal Blackfly 1288x964, 12 mm setup). |
-| `13` | `fy` | `3200.0` | `> 0.0` | Rectified vertical focal length in pixels (nominal Blackfly 1288x964, 12 mm setup). |
+| `12` | `fx` | `1000.0` | `0.001 .. 100000` | Rectified horizontal focal length in pixels; workflow default is 3200. |
+| `13` | `fy` | chosen `fx` | `0.001 .. 100000` | Rectified vertical focal length in pixels; workflow default is 3200. |
 | `14` | `cx` | `-1.0` | `\ge -1.0` | Horizontal principal point in pixels (`-1.0` auto-centers to $(W-1)/2$). |
 | `15` | `cy` | `-1.0` | `\ge -1.0` | Vertical principal point in pixels (`-1.0` auto-centers to $(H-1)/2$). |
 

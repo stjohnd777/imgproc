@@ -196,6 +196,19 @@
             z-index: 10;
         }
 
+        .workflow-node.selected {
+            outline: 2px solid #007acc;
+            outline-offset: 1px;
+        }
+
+        .workflow-marquee {
+            position: absolute;
+            border: 1px dashed #007acc;
+            background: rgba(0, 122, 204, 0.12);
+            pointer-events: none;
+            z-index: 20;
+        }
+
         @keyframes wf-node-pulse {
             0% {
                 border-color: #007acc;

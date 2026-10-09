@@ -8,6 +8,7 @@
 #include "cli_args.hpp"
 #include "keypoints_json.hpp"
 
+
 int main(int argc, char* argv[]) {
     if (argc < 3) {
         std::cerr << "Usage: sift_cli <input_image> <output_image> [keypoints_json]"

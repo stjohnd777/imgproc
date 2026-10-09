@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "stereo_pose_estimator",
+  "name": "Stereo Pose Estimator",
+  "kind": "transform",
+  "category": "ai_ml",
+  "icon": "transform",
+  "summary": "Fixed-rig learned target position and attitude from a synchronized grayscale stereo pair. Scaffold only: ONNX Runtime inference is not implemented and running reports an error without producing a pose.",
+  "inputs": [
+    { "name": "left", "type": "image" },
+    { "name": "right", "type": "image" }
+  ],
+  "outputs": [
+    { "name": "pose", "type": "text" }
+  ],
+  "params": {
+    "modelFile": { "type": "file", "label": "Trained ONNX model", "default": "", "description": "Required fixed-rig model. No bundled model or fallback." },
+    "metadataFile": { "type": "file", "label": "Model metadata JSON", "default": "", "description": "Required preprocessing, rig/target identity, units, and pose conventions. Inference is currently a stub." }
+  },
+  "telemetry": [],
+  "exec": {
+    "cli": "cpp-stereo-pose/build/stereo_pose_cli",
+    "args": ["{in.left}", "{in.right}", "{param.modelFile}", "{param.metadataFile}", "{out.pose}"]
+  }
+}

@@ -178,6 +178,46 @@ export class View {
             event.preventDefault();
             this.controller.saveWorkflow(tab.id, event.shiftKey);
         });
+        window.addEventListener('keydown', event => this.handleWorkflowEditKey(event));
+    }
+
+    // Workflow editing shortcuts. They apply only when focus is on the workflow canvas (or nowhere),
+    // never while typing in a field, using another focused control, or with a dialog open.
+    handleWorkflowEditKey(event) {
+        const target = event.target;
+        if (target !== document.body && !target?.classList?.contains('workflow-viewport')) return;
+        if ([...document.querySelectorAll('.modal')].some(modal => modal.offsetParent !== null)) return;
+        const tab = this.model.getActiveTab();
+        if (tab?.type !== 'workflow') return;
+
+        const command = event.metaKey || event.ctrlKey;
+        const key = event.key.toLowerCase();
+        const actions = {
+            a: () => this.controller.selectAllWorkflowNodes(tab.id),
+            c: () => {
+                // Leave ordinary text copying alone when text is highlighted.
+                if (String(window.getSelection?.() ?? '')) return false;
+                return this.controller.copyWorkflowSelection(tab.id);
+            },
+            x: () => this.controller.cutWorkflowSelection(tab.id),
+            v: () => this.controller.pasteWorkflowClipboard(tab.id),
+            d: () => this.controller.duplicateWorkflowSelection(tab.id),
+            z: () => event.shiftKey ? this.controller.redoWorkflow(tab.id) : this.controller.undoWorkflow(tab.id),
+            y: () => this.controller.redoWorkflow(tab.id)
+        };
+        let handled;
+        if (command && actions[key]) handled = actions[key]();
+        else if (!command && (event.key === 'Delete' || event.key === 'Backspace')) {
+            handled = Boolean(tab.selectedNodeIds?.length || tab.selectedEdgeId);
+            this.controller.deleteWorkflowSelection(tab.id);
+        } else if (!command && event.key === 'Escape') {
+            handled = Boolean(tab.selectedNodeIds?.length || tab.selectedEdgeId);
+            if (handled) {
+                this.model.selectWorkflowEdge(tab.id, null);
+                this.controller.setWorkflowSelection(tab.id, []);
+            }
+        } else return;
+        if (handled !== false) event.preventDefault();
     }
 
     render() {
@@ -1294,19 +1334,58 @@ export class View {
 
         canvas.workflow = { svg, portCenter, drawEdges };
 
+        // Press on empty canvas to clear the selection, or drag to box-select nodes.
+        // Shift/Cmd/Ctrl adds the boxed nodes to the current selection.
         canvas.addEventListener('pointerdown', event => {
-            if ((event.target === canvas || event.target === svg) && tab.selectedEdgeId) {
-                this.controller.selectWorkflowEdge(tab.id, null);
-            }
-        });
-        viewport.addEventListener('keydown', event => {
-            if (!tab.selectedEdgeId) return;
-            if (event.key === 'Delete' || event.key === 'Backspace') {
-                event.preventDefault();
-                this.controller.removeWorkflowEdge(tab.id, tab.selectedEdgeId);
-            } else if (event.key === 'Escape') {
-                this.controller.selectWorkflowEdge(tab.id, null);
-            }
+            if (event.button !== 0 || (event.target !== canvas && event.target !== svg)) return;
+            event.preventDefault();
+            viewport.focus({ preventScroll: true });
+            const scale = tab.workflowScale ?? 1;
+            const toCanvas = pointer => {
+                const rect = canvas.getBoundingClientRect();
+                return { x: (pointer.clientX - rect.left) / scale, y: (pointer.clientY - rect.top) / scale };
+            };
+            const start = toCanvas(event);
+            const additive = event.shiftKey || event.metaKey || event.ctrlKey;
+            const initial = additive ? [...(tab.selectedNodeIds ?? [])] : [];
+            const nodeEls = [...canvas.querySelectorAll('.workflow-node')];
+            let marquee = null;
+            let selection = initial;
+
+            const onMove = moveEvent => {
+                if (!marquee && Math.hypot(moveEvent.clientX - event.clientX, moveEvent.clientY - event.clientY) < 3) return;
+                if (!marquee) {
+                    marquee = document.createElement('div');
+                    marquee.className = 'workflow-marquee';
+                    canvas.appendChild(marquee);
+                }
+                const point = toCanvas(moveEvent);
+                const box = {
+                    left: Math.min(start.x, point.x), top: Math.min(start.y, point.y),
+                    right: Math.max(start.x, point.x), bottom: Math.max(start.y, point.y)
+                };
+                Object.assign(marquee.style, {
+                    left: `${box.left}px`, top: `${box.top}px`,
+                    width: `${box.right - box.left}px`, height: `${box.bottom - box.top}px`
+                });
+                const boxed = nodeEls.filter(nodeEl => nodeEl.offsetLeft < box.right
+                    && nodeEl.offsetLeft + nodeEl.offsetWidth > box.left
+                    && nodeEl.offsetTop < box.bottom
+                    && nodeEl.offsetTop + nodeEl.offsetHeight > box.top).map(nodeEl => nodeEl.dataset.nodeId);
+                selection = [...new Set([...initial, ...boxed])];
+                for (const nodeEl of nodeEls) nodeEl.classList.toggle('selected', selection.includes(nodeEl.dataset.nodeId));
+            };
+            const onUp = () => {
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onUp);
+                window.removeEventListener('pointercancel', onUp);
+                marquee?.remove();
+                if (!marquee && !additive) this.model.selectWorkflowEdge(tab.id, null);
+                if (marquee || !additive) this.controller.setWorkflowSelection(tab.id, selection);
+            };
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onUp);
+            window.addEventListener('pointercancel', onUp);
         });
 
         viewport.addEventListener('dragover', event => {
@@ -1336,7 +1415,8 @@ export class View {
             viewport.scrollLeft = tab.scroll?.left ?? 0;
             viewport.scrollTop = tab.scroll?.top ?? 0;
             drawEdges();
-            if (tab.selectedEdgeId) viewport.focus({ preventScroll: true });
+            const focusIsFree = !document.activeElement || document.activeElement === document.body;
+            if (focusIsFree && (tab.selectedEdgeId || tab.selectedNodeIds?.length)) viewport.focus({ preventScroll: true });
         });
 
         container.appendChild(viewport);
@@ -1344,8 +1424,11 @@ export class View {
         const status = document.createElement('div');
         status.className = 'status-bar workflow-status-bar';
         const summary = document.createElement('span');
+        const selectedCount = tab.selectedNodeIds?.length ?? 0;
         summary.textContent = `nodes: ${tab.graph.nodes.length}  connections: ${tab.graph.edges.length}`
-            + '  —  drag from a port to connect; click a connection, then Delete to remove it';
+            + (selectedCount ? `  selected: ${selectedCount}` : '')
+            + '  —  drag ports to connect; drag empty space to box-select; ⌘C/⌘X/⌘V/⌘D copy, cut, paste, duplicate;'
+            + ' Delete removes; ⌘Z/⇧⌘Z undo/redo';
         status.appendChild(summary);
         const fit = document.createElement('button');
         fit.className = 'plan-btn';
@@ -1450,6 +1533,7 @@ export class View {
         const el = document.createElement('div');
         el.className = `workflow-node wf-${node.kind}`;
         el.dataset.nodeId = node.id;
+        if (tab.selectedNodeIds?.includes(node.id)) el.classList.add('selected');
         if (tab.activeNodeId === node.id) {
             el.classList.add('executing');
         }
@@ -1525,29 +1609,71 @@ export class View {
             el.appendChild(telemetry);
         }
 
-        // Drag by the header. Only the node's position changes while moving; the model updates on release.
-        header.addEventListener('pointerdown', event => {
+        // Press anywhere on the node (buttons and ports handle their own presses) to select it, and drag
+        // to move it together with the rest of the selection. Shift/Cmd/Ctrl-click toggles membership.
+        // Nothing re-renders mid-drag: only element positions change until the pointer is released.
+        el.addEventListener('pointerdown', event => {
             if (event.button !== 0) return;
             event.preventDefault();
-            el.classList.add('dragging');
+            event.stopPropagation();
             const canvas = el.closest('.workflow-canvas');
+            canvas?.closest('.workflow-viewport')?.focus({ preventScroll: true });
+            const additive = event.shiftKey || event.metaKey || event.ctrlKey;
+            const wasSelected = (tab.selectedNodeIds ?? []).includes(node.id);
+            let selection;
+            if (additive) {
+                selection = wasSelected
+                    ? tab.selectedNodeIds.filter(id => id !== node.id)
+                    : [...(tab.selectedNodeIds ?? []), node.id];
+            } else {
+                selection = wasSelected ? [...tab.selectedNodeIds] : [node.id];
+            }
+            for (const nodeEl of canvas?.querySelectorAll('.workflow-node') ?? []) {
+                nodeEl.classList.toggle('selected', selection.includes(nodeEl.dataset.nodeId));
+            }
+            // A toggle-off press never drags.
+            const dragging = selection.includes(node.id);
+            const movers = dragging
+                ? tab.graph.nodes.filter(item => selection.includes(item.id)).map(item => ({
+                    item, el: canvas?.querySelector(`.workflow-node[data-node-id="${CSS.escape(item.id)}"]`)
+                })).filter(mover => mover.el)
+                : [];
+            const scale = tab.workflowScale ?? 1;
             const startX = event.clientX;
             const startY = event.clientY;
-            let x = node.x;
-            let y = node.y;
+            // Clamp the group as a whole so it keeps its shape against the canvas edge.
+            const minX = Math.min(...movers.map(m => m.item.x));
+            const minY = Math.min(...movers.map(m => m.item.y));
+            let dx = 0;
+            let dy = 0;
+            let moved = false;
 
             const onMove = moveEvent => {
-                x = Math.max(0, node.x + (moveEvent.clientX - startX) / (tab.workflowScale ?? 1));
-                y = Math.max(0, node.y + (moveEvent.clientY - startY) / (tab.workflowScale ?? 1));
-                el.style.left = `${x}px`;
-                el.style.top = `${y}px`;
+                if (!dragging) return;
+                if (!moved && Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) < 3) return;
+                if (!moved) for (const mover of movers) mover.el.classList.add('dragging');
+                moved = true;
+                dx = Math.max(-minX, (moveEvent.clientX - startX) / scale);
+                dy = Math.max(-minY, (moveEvent.clientY - startY) / scale);
+                for (const mover of movers) {
+                    mover.el.style.left = `${mover.item.x + dx}px`;
+                    mover.el.style.top = `${mover.item.y + dy}px`;
+                }
                 canvas?.workflow?.drawEdges();
             };
             const onUp = () => {
                 window.removeEventListener('pointermove', onMove);
                 window.removeEventListener('pointerup', onUp);
                 window.removeEventListener('pointercancel', onUp);
-                this.controller.moveWorkflowNode(tab.id, node.id, x, y);
+                if (moved) {
+                    this.model.setWorkflowSelection(tab.id, selection);
+                    this.controller.moveWorkflowNodes(tab.id, Object.fromEntries(movers.map(mover =>
+                        [mover.item.id, { x: mover.item.x + dx, y: mover.item.y + dy }])));
+                } else {
+                    // A plain click on an already-selected node narrows the selection to that node.
+                    this.controller.setWorkflowSelection(tab.id,
+                        !additive && wasSelected ? [node.id] : selection);
+                }
             };
             window.addEventListener('pointermove', onMove);
             window.addEventListener('pointerup', onUp);
@@ -1561,7 +1687,7 @@ export class View {
     buildPort(tab, node, port, direction) {
         const row = document.createElement('div');
         row.className = `workflow-port ${direction} port-${port.type}`;
-        row.title = `${port.name}: ${port.type}`;
+        row.title = `${port.name}: ${port.type}${port.optional ? ' (optional; uses configured file/preset when disconnected)' : ''}`;
         row.dataset.nodeId = node.id;
         row.dataset.port = port.name;
         row.dataset.direction = direction;
@@ -1569,7 +1695,7 @@ export class View {
         const dot = document.createElement('span');
         dot.className = 'workflow-port-dot';
         const label = document.createElement('span');
-        label.textContent = port.name;
+        label.textContent = port.name + (port.optional ? ' (optional)' : '');
         row.append(dot, label);
 
         row.addEventListener('pointerdown', event => {

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "splitter3",
+  "name": "Splitter 3",
+  "kind": "transform",
+  "category": "utility",
+  "icon": "transform",
+  "summary": "Passes one image to three branches for parallel processing. Optional: any output can already feed several inputs.",
+  "inputs": [
+    { "name": "image", "type": "image" }
+  ],
+  "outputs": [
+    { "name": "a", "type": "image" },
+    { "name": "b", "type": "image" },
+    { "name": "c", "type": "image" }
+  ],
+  "params": {},
+  "telemetry": [],
+  "exec": { "builtin": "passthrough" }
+}
