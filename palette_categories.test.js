@@ -71,8 +71,9 @@ test('palette renders every element once in category order and retains drag iden
     };
     View.prototype.renderElementPalette.call(view);
     const headings = sideBar.children.filter(child => child.className === 'palette-heading');
-    assert.deepEqual(headings.map(child => child.children[1].textContent),
+    assert.deepEqual(headings.map(child => child.children.at(-1).textContent),
         ELEMENT_CATEGORIES.map(section => `${section.title} (${expected[section.category].length})`));
+    assert.ok(headings.every(child => child.children.length === 3), 'each heading has twisty, category icon and label');
     const lists = sideBar.children.filter(child => child.className === 'palette-list');
     const dragged = [];
     for (const [index, list] of lists.entries()) {

@@ -9,12 +9,12 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import vm from 'node:vm';
 import { renderArgs } from '../../workflow_args.js';
+import { nativeTool, testExecutable } from './tools.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const build = path.join(root, 'cv-cli/cpp-stereo-calibration/build');
-const calibrate = path.join(build, 'stereo_calibrate_cli');
-const rectify = path.join(build, 'stereo_rectify_cli');
-const remap = path.join(root, 'cv-cli/cpp-remap/build/remap_cli');
+const calibrate = nativeTool('cpp-stereo-calibration/build/stereo_calibrate_cli');
+const rectify = nativeTool('cpp-stereo-calibration/build/stereo_rectify_cli');
+const remap = nativeTool('cpp-remap/build/remap_cli');
 const element = name => JSON.parse(readFileSync(path.join(root, `elements/${name}.json`)));
 const ideal = {
     schemaVersion: 1, type: 'stereo_calibration', imageWidth: 640, imageHeight: 480,
@@ -70,12 +70,12 @@ test('known parallel synthetic calibration produces metric Q and maps directly r
 
 test('checkerboard folders calibrate known geometry and feed rectification through workflow execution', async t => {
     const dir = directory(t);
-    run(path.join(build, 'stereo_calibration_fixture'), [dir]);
+    run(testExecutable('cpp-stereo-calibration', 'stereo_calibration_fixture'), [dir]);
     const main = readFileSync(path.join(root, 'main.js'), 'utf8');
     const context = vm.createContext({
         path, mkdir, performance, renderArgs, TOOL_TIMEOUT_MS: 120000,
         isInAllowedFolder: filename => filename.startsWith(dir + path.sep),
-        resolveCli: filename => path.join(root, 'cv-cli', filename),
+        resolveCli: filename => nativeTool(filename),
         executeCli: async (filename, args) => run(filename, args)
     });
     vm.runInContext(main.slice(main.indexOf('const PORT_FILE_TYPES'), main.indexOf('// Works out execution order')), context);
@@ -167,7 +167,7 @@ test('workflow plan preserves optional inputs and runner produces calibration ma
         path, mkdir, stat, performance, randomUUID, renderArgs,
         RUNS_DIR: dir, allowedFolders: new Set(), TOOL_TIMEOUT_MS: 120000,
         isInAllowedFolder: filename => filename.startsWith(dir + path.sep),
-        resolveCli: filename => path.join(root, 'cv-cli', filename),
+        resolveCli: filename => nativeTool(filename),
         executeCli: async (filename, args) => run(filename, args)
     });
     vm.runInContext(main.slice(main.indexOf('const PORT_FILE_TYPES'), main.indexOf('// --- Running a workflow')), context);

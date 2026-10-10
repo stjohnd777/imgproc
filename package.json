@@ -1,19 +1,120 @@
 {
-  "name": "hello-world",
-  "version": "1.0.0",
-  "description": "",
+  "name": "orbital-eyes",
+  "productName": "Orbital Eyes",
+  "version": "0.9.0-beta.1",
+  "description": "Synthetic spacecraft imagery and visual navigation workbench (Electron + OpenCV + Blender).",
   "license": "ISC",
-  "author": "",
+  "author": "Daniel St. John",
+  "homepage": "https://github.com/stjohnd777/imgproc",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stjohnd777/imgproc.git"
+  },
   "type": "module",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "electron . --dev",
+    "test": "node --test *.test.js cv-cli/test/*.test.mjs",
+    "build:native": "node scripts/build-native.mjs",
+    "build:native:system": "node scripts/build-native.mjs --system",
+    "verify:native": "node scripts/build-native.mjs --verify-only",
+    "smoke:native": "node scripts/smoke-native.mjs",
+    "build:cli": "bash build_cli.sh",
+    "prepack": "npm run verify:native",
+    "pack": "electron-builder --dir",
+    "predist": "npm run verify:native",
+    "dist": "electron-builder",
+    "dist:mac": "npm run verify:native && electron-builder --mac",
+    "dist:win": "npm run verify:native && electron-builder --win",
+    "dist:linux": "npm run verify:native && electron-builder --linux"
   },
   "dependencies": {
     "three": "^0.180.0"
   },
   "devDependencies": {
-    "electron": "^44.4.3"
+    "electron": "^44.4.3",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.stjohnd777.orbital-eyes",
+    "productName": "Orbital Eyes",
+    "copyright": "Copyright © 2025 Daniel St. John",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build-resources"
+    },
+    "asar": false,
+    "files": [
+      "package.json",
+      "app.json",
+      "*.js",
+      "!*.test.js",
+      "*.cjs",
+      "*.html",
+      "*.md",
+      "assets/**",
+      "build-resources/icon.png",
+      "elements/**",
+      "camera_spec/**",
+      "algo_spec/**",
+      "img/**",
+      "maps/**",
+      "SynC/models/**",
+      "SynC/pylib/**",
+      "SynC/README.md",
+      "SynC/scenes/**",
+      "!SynC/scenes/**/{left,right,output}/**",
+      "!SynC/scenes/**/*.{png,jpg,jpeg,tif,tiff,exr}",
+      "cv-cli/README.md",
+      "cv-cli/FEATURE_OUTPUTS.md",
+      "native/**/*",
+      "!**/__pycache__/**"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "build-resources/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build-resources/entitlements.mac.plist",
+      "entitlementsInherit": "build-resources/entitlements.mac.plist",
+      "extendInfo": {
+        "NSCameraUsageDescription": "Orbital Eyes captures images from attached cameras for calibration and workflows."
+      }
+    },
+    "dmg": {
+      "title": "Orbital Eyes ${version}"
+    },
+    "win": {
+      "icon": "build-resources/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-win-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    },
+    "linux": {
+      "icon": "build-resources/icon.png",
+      "category": "Science",
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ],
+      "artifactName": "${productName}-${version}-linux-${arch}.${ext}",
+      "synopsis": "Synthetic spacecraft imagery and visual navigation workbench"
+    }
   }
 }

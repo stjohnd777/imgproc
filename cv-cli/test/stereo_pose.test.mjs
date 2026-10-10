@@ -8,10 +8,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { renderArgs } from '../../workflow_args.js';
+import { nativeTool } from './tools.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const spec = JSON.parse(readFileSync(path.join(root, 'elements/stereo_pose_estimator.json')));
-const executable = path.join(root, 'cv-cli', spec.exec.cli);
+const executable = nativeTool(spec.exec.cli);
 
 function fixture(t) {
     const dir = mkdtempSync(path.join(tmpdir(), 'stereo-pose-'));
@@ -77,7 +78,7 @@ test('workflow authorizes model files, maps stereo inputs, and propagates stub f
     const context = vm.createContext({
         path, mkdir, performance, renderArgs, TOOL_TIMEOUT_MS: 30000,
         isInAllowedFolder: file => { checked.push(file); return authorized; },
-        resolveCli: name => path.join(root, 'cv-cli', name),
+        resolveCli: name => nativeTool(name),
         executeCli: async (exe, args) => {
             executions++;
             invokedArgs = args;

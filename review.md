@@ -225,16 +225,16 @@ A known body ResizeObserver disposal issue remains to be addressed separately.
 
 ## Results, configuration and reproducibility
 
-Current [app.json](app.json):
-
-```json
-{
-  "resultsDir": "~/data/workflows",
-  "toolTimeoutMs": 60000,
-  "modelsDir": "SynC/models",
-  "scenesDir": "~/data/workflows/scenes"
-}
-```
+Current [app.json](app.json) also configures tool locations
+(`nativeDir`, `cliDir`, `blenderPath`, `pythonPath`, `usbCameraCli`); a
+per-user `app.json` in the Electron user-data folder (macOS
+`~/Library/Application Support/Orbital Eyes`, Windows `%APPDATA%\Orbital Eyes`,
+Linux `~/.config/Orbital Eyes`) overrides any key. Tools resolve from
+`native/bin` (the vcpkg build installed by `npm run build:native`) before the
+per-project build folders; `native/native-info.json` records the OpenCV
+version and vcpkg triplet used.
+The About window reports the resolved paths and which native tools exist,
+and Plan reports workflow elements whose native tool is missing.
 
 Results use producing-node/port filenames and typed extensions.
 Run IDs contain timestamps plus UUIDs; the old second-resolution collision
@@ -264,7 +264,10 @@ Recent validation:
   rendering; these are prior evidence, not newly rerun in this document update.
 
 Build native projects using VS Code CMake Tools. App execution is `npm start`.
-Tests use Node's built-in runner; `npm test` remains a placeholder.
+Tests use Node's built-in runner; `npm test` runs the whole suite
+(118 passing at 0.9.0-beta.1). `npm run pack` builds a working unsigned
+`.app`; signing, notarization and example workflows are the remaining
+beta items.
 Latest targeted command:
 
 ```sh

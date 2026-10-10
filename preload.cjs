@@ -73,3 +73,9 @@ contextBridge.exposeInMainWorld('workflow', {
         return () => ipcRenderer.removeListener(channel, listener);
     }
 });
+
+contextBridge.exposeInMainWorld('appInfo', {
+    // Each opens (or focuses) its own window.
+    showHelp: () => ipcRenderer.invoke('app:showHelp'),
+    showAbout: () => ipcRenderer.invoke('app:showAbout')
+});

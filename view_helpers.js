@@ -26,18 +26,28 @@ export function nodeParameterSummary(node) {
         .slice(0, 3).map(([key, value]) => `${key}: ${typeof value === 'string' ? basename(value) : value}`).join(' · ');
 }
 export const ELEMENT_CATEGORIES = [
-    { category: 'source', title: 'Sources' },
-    { category: 'enhancement', title: 'Image Enhancement' },
-    { category: 'geometry', title: 'Geometry & Calibration' },
-    { category: 'segmentation', title: 'Segmentation & Edges' },
-    { category: 'feature', title: 'Features' },
-    { category: 'stereo', title: 'Stereo & 3D' },
-    { category: 'ai_ml', title: 'AI/ML' },
-    { category: 'analysis', title: 'Analysis' },
-    { category: 'simulation', title: 'Simulation' },
-    { category: 'utility', title: 'Utilities' },
-    { category: 'sink', title: 'Sinks & Viewers' }
+    { category: 'source', title: 'Sources', icon: 'image' },
+    { category: 'enhancement', title: 'Image Enhancement', icon: 'sliders' },
+    { category: 'geometry', title: 'Geometry & Calibration', icon: 'grid' },
+    { category: 'segmentation', title: 'Segmentation & Edges', icon: 'edges' },
+    { category: 'feature', title: 'Features', icon: 'crosshair' },
+    { category: 'stereo', title: 'Stereo & 3D', icon: 'stereo' },
+    { category: 'ai_ml', title: 'AI/ML', icon: 'brain' },
+    { category: 'analysis', title: 'Analysis', icon: 'chart' },
+    { category: 'simulation', title: 'Simulation', icon: 'sparkle' },
+    { category: 'utility', title: 'Utilities', icon: 'branch' },
+    { category: 'sink', title: 'Sinks & Viewers', icon: 'storage' }
 ];
+
+// An element's own icon wins unless it is the generic 'transform' (or unknown); then its category's icon is used.
+export function elementIconName(element, knownIcons, kindIcons = {}) {
+    const known = name => Boolean(name) && knownIcons.has(name);
+    if (element.icon !== 'transform' && known(element.icon)) return element.icon;
+    const categoryIcon = ELEMENT_CATEGORIES.find(entry => entry.category === elementCategory(element))?.icon;
+    if (known(categoryIcon)) return categoryIcon;
+    if (known(element.icon)) return element.icon;
+    return known(kindIcons[element.kind]) ? kindIcons[element.kind] : 'transform';
+}
 
 export function elementCategory(element) {
     // Keep older/custom definitions in the palette without obsolete sections.

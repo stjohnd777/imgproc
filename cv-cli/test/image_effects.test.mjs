@@ -9,9 +9,9 @@ import { deflateSync, inflateSync } from 'node:zlib';
 import { renderArgs } from '../../workflow_args.js';
 import { cameraParameters } from '../../camera_parameters.js';
 import { View } from '../../View.js';
+import { nativeTool } from './tools.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const project = path.join(root, 'cv-cli/cpp-image-effects/build');
 
 function chunk(type, data) {
     const body = Buffer.concat([Buffer.from(type), data]);
@@ -91,7 +91,7 @@ function fixture(t) {
 }
 
 function run(tool, args, success = true) {
-    const result = spawnSync(path.join(project, `${tool}_cli`), args.map(String), { encoding: 'utf8' });
+    const result = spawnSync(nativeTool(`cpp-image-effects/build/${tool}_cli`), args.map(String), { encoding: 'utf8' });
     if (success) assert.equal(result.status, 0, result.error?.message ?? result.stderr);
     else {
         assert.notEqual(result.status, 0);
@@ -328,7 +328,7 @@ test('Distort Image then existing Undistort approximately recovers interior pixe
     writePng(input, 129, 129, 3, 8, values);
     const parameters = [80, 80, 64, 64, 0.1, 0.01, 0.002, -0.001, 0.005];
     run('distort', [input, distorted, ...parameters]);
-    const result = spawnSync(path.join(root, 'cv-cli/cpp-undistort/build/undistort_cli'),
+    const result = spawnSync(nativeTool('cpp-undistort/build/undistort_cli'),
         [distorted, output, ...parameters.map(String)], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.error?.message ?? result.stderr);
     const recovered = readPng(output);
@@ -415,7 +415,7 @@ test('new filters declare editable defaults and execute the workflow argument te
             assert.equal(fields.find(field => field.name === 'kernel_size').step, 2);
         }
         const args = renderArgs(element.exec.args, { inputs: { image: input }, outputs: { image: output }, params });
-        const result = spawnSync(path.join(root, 'cv-cli', element.exec.cli), args, { encoding: 'utf8' });
+        const result = spawnSync(nativeTool(element.exec.cli), args, { encoding: 'utf8' });
         assert.equal(result.status, 0, result.stderr);
         const image = readPng(output);
         assert.equal(image.width, 32);

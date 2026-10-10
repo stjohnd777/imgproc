@@ -9,10 +9,11 @@ import vm from 'node:vm';
 import { mkdir, stat } from 'node:fs/promises';
 import { renderArgs } from '../../workflow_args.js';
 import { uiViewResult } from '../../ui_view.js';
+import { nativeTool } from './tools.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const element = JSON.parse(readFileSync(path.join(root, 'elements/disparity.json')));
-const executable = path.join(root, 'cv-cli', element.exec.cli);
+const executable = nativeTool(element.exec.cli);
 const defaults = Object.fromEntries(Object.entries(element.params).map(([name, spec]) => [name, spec.default]));
 
 function fixture(t, shift = 8) {
@@ -81,7 +82,7 @@ test('frame runner executes the element and delivers image and numeric outputs t
         path, mkdir, stat, performance, renderArgs, uiViewResult, TOOL_TIMEOUT_MS: 30000,
         IMAGE_EXTENSIONS: new Set(['.png']),
         isInAllowedFolder: filename => filename.startsWith(dir + path.sep),
-        resolveCli: filename => path.join(root, 'cv-cli', filename),
+        resolveCli: filename => nativeTool(filename),
         executeCli: async (filename, args) => {
             const result = spawnSync(filename, args, { encoding: 'utf8' });
             assert.equal(result.status, 0, result.error?.message ?? result.stderr);

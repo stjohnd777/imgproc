@@ -5,8 +5,9 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { nativeTool } from './tools.mjs';
 
-const executable = fileURLToPath(new URL('../cpp-simple-stereo/build/simple_stereo_cli', import.meta.url));
+const executable = nativeTool('cpp-simple-stereo/build/simple_stereo_cli');
 
 function stereoFixture(t, shift) {
     const directory = mkdtempSync(path.join(tmpdir(), 'simple-stereo-coordinates-'));

@@ -8,10 +8,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { renderArgs } from '../../workflow_args.js';
+import { nativeTool } from './tools.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const spec = JSON.parse(readFileSync(path.join(root, 'elements/dense_stereo.json')));
-const executable = path.join(root, 'cv-cli', spec.exec.cli);
+const executable = nativeTool(spec.exec.cli);
 const defaults = Object.fromEntries(Object.entries(spec.params).map(([name, value]) => [name, value.default]));
 
 function fixture(t) {
@@ -147,7 +148,7 @@ test('workflow executes numeric Disparity data and Q to both reconstruction arti
     const main = readFileSync(path.join(root, 'main.js'), 'utf8');
     const context = vm.createContext({
         path, mkdir, performance, renderArgs, TOOL_TIMEOUT_MS: 30000,
-        resolveCli: name => path.join(root, 'cv-cli', name),
+        resolveCli: name => nativeTool(name),
         executeCli: async (exe, args) => {
             const result = spawnSync(exe, args, { encoding: 'utf8' });
             assert.equal(result.status, 0, result.stderr);
@@ -199,7 +200,7 @@ test('actual StereoSGBM data plus generated rectification Q recover a known 15 m
         R: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], T: [[-0.12], [0], [0]]
     }));
     const execute = (exe, args) => {
-        const result = spawnSync(path.join(root, 'cv-cli', exe), args, { encoding: 'utf8' });
+        const result = spawnSync(nativeTool(exe), args, { encoding: 'utf8' });
         assert.equal(result.status, 0, result.stderr);
     };
     execute('cpp-stereo-calibration/build/stereo_rectify_cli', [

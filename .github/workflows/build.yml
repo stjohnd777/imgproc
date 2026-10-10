@@ -1,0 +1,91 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Keep in sync with "builtin-baseline" in cv-cli/vcpkg.json.
+  VCPKG_COMMIT: be1ae8e5c5bc79aac1b8f593f5554aee1cfde54f
+  VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS arm64
+            os: macos-14
+            triplet: arm64-osx-oe
+            dist: --mac
+          - name: Linux x64
+            os: ubuntu-22.04
+            triplet: x64-linux-oe
+            dist: --linux
+          - name: Windows x64
+            os: windows-2022
+            triplet: x64-windows-oe
+            dist: --win
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Linux build prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y nasm pkg-config autoconf automake libtool ninja-build
+
+      - name: Set up vcpkg
+        shell: bash
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          git -C "$RUNNER_TEMP/vcpkg" checkout "$VCPKG_COMMIT"
+          if [ "$RUNNER_OS" = "Windows" ]; then "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.bat" -disableMetrics; else "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics; fi
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+          mkdir -p .vcpkg-cache
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: .vcpkg-cache
+          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('cv-cli/vcpkg.json', 'cv-cli/triplets/**') }}
+          restore-keys: vcpkg-${{ matrix.triplet }}-
+
+      - run: npm ci
+
+      - name: Build native tools (vcpkg)
+        run: node scripts/build-native.mjs --triplet ${{ matrix.triplet }}
+
+      - name: Native smoke test
+        run: npm run smoke:native
+
+      - name: Unit and tool tests
+        run: npm test
+
+      - name: Package
+        run: npx electron-builder ${{ matrix.dist }} --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orbital-eyes-${{ matrix.triplet }}
+          if-no-files-found: error
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.tar.gz

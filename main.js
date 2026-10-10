@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron';
 import { readFile, mkdir, readdir, copyFile, writeFile, rename, unlink, stat, lstat, realpath, rm } from 'node:fs/promises';
 import { rmSync, readFileSync, mkdirSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -13,26 +13,45 @@ import { executeCli } from './cli_process.js';
 import { readSceneDocument, renderSyntheticScene } from './synthetic_scene.js';
 import { configuredFolder, createSceneStorage } from './scene_composer_storage.js';
 import { validateComposerDocument } from './scene_composer_document.js';
+import { defaultBlenderPath, defaultPythonCommand, executableName, findTool, scanToolFolder } from './native_tools.js';
 
+app.setName('Orbital Eyes');
 const APP_DIR = import.meta.dirname;
-const CLI_DIR = path.join(APP_DIR, 'cv-cli');
 const IMAGE_DIR = path.join(APP_DIR, 'img');
 const MAPS_DIR = path.join(APP_DIR, 'maps');
 const SYNC_DIR = path.join(APP_DIR, 'SynC');
+const DEV_MODE = process.argv.includes('--dev') || process.env.ORBITAL_EYES_DEV === '1';
+const PACKAGE_INFO = JSON.parse(readFileSync(path.join(APP_DIR, 'package.json'), 'utf8'));
 
-// Settings live in app.json so the results location can be changed without touching code.
+// Settings live in app.json so locations and external tools can be changed without touching code.
+// Relative paths resolve against the app folder; '~' expands to the home folder.
 const DEFAULT_SETTINGS = {
     resultsDir: '~/data/navlib', toolTimeoutMs: 60_000,
-    modelsDir: 'SynC/models', scenesDir: '~/data/workflows/scenes'
+    modelsDir: 'SynC/models', scenesDir: '~/data/workflows/scenes',
+    cliDir: 'cv-cli',
+    nativeDir: 'native',
+    blenderPath: defaultBlenderPath(),
+    pythonPath: defaultPythonCommand(),
+    usbCameraCli: ''
 };
 
-function loadSettings() {
+function readSettingsFile(file) {
     try {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(readFileSync(path.join(APP_DIR, 'app.json'), 'utf8')) };
+        return JSON.parse(readFileSync(file, 'utf8'));
     } catch (err) {
-        if (err.code !== 'ENOENT') console.warn(`app.json ignored: ${err.message}`);
-        return { ...DEFAULT_SETTINGS };
+        if (err.code !== 'ENOENT') console.warn(`${file} ignored: ${err.message}`);
+        return {};
     }
+}
+
+// A per-user app.json (in Electron's userData folder) overrides the bundled one, which matters
+// once the app is packaged and its own folder is read-only.
+function loadSettings() {
+    return {
+        ...DEFAULT_SETTINGS,
+        ...readSettingsFile(path.join(APP_DIR, 'app.json')),
+        ...readSettingsFile(path.join(app.getPath('userData'), 'app.json'))
+    };
 }
 
 const settings = loadSettings();
@@ -40,6 +59,18 @@ const settings = loadSettings();
 function expandHome(target) {
     return target.startsWith('~') ? path.join(os.homedir(), target.slice(1)) : target;
 }
+
+// Bare command names (e.g. 'blender') are left for PATH lookup; anything with a separator is a path.
+function configuredExecutable(value, fallback) {
+    const text = String(value || fallback);
+    return text.includes('/') || text.includes('\\') || text.startsWith('~')
+        ? path.resolve(APP_DIR, expandHome(text)) : text;
+}
+
+const CLI_DIR = path.resolve(APP_DIR, expandHome(String(settings.cliDir || DEFAULT_SETTINGS.cliDir)));
+const NATIVE_DIR = path.resolve(APP_DIR, expandHome(String(settings.nativeDir || DEFAULT_SETTINGS.nativeDir)));
+const BLENDER_PATH = configuredExecutable(settings.blenderPath, DEFAULT_SETTINGS.blenderPath);
+const PYTHON_PATH = configuredExecutable(settings.pythonPath, DEFAULT_SETTINGS.pythonPath);
 
 // The only folders the page may list specs from, keyed by the name it passes.
 const SPEC_DIRS = {
@@ -493,7 +524,7 @@ function frameArtifacts(steps, runDir, frame) {
 
 // Works out execution order and the file each output will be written to, without running anything.
 // Returns the same shape whether or not the graph is runnable, so the page can show the problems.
-async function prepareWorkflowRun({ name, graph } = {}) {
+async function prepareWorkflowRun({ name, graph } = {}, { extraProblems = [] } = {}) {
     const nodes = graph?.nodes ?? [];
     const edges = graph?.edges ?? [];
     const problems = [];
@@ -544,6 +575,8 @@ async function prepareWorkflowRun({ name, graph } = {}) {
             [port, source ? preview.get(source.nodeId)?.[source.port] ?? null : null]));
     }
 
+    problems.push(...extraProblems);
+
     const runnable = problems.length === 0;
     if (runnable) {
         await mkdir(runDir, { recursive: true });
@@ -557,6 +590,26 @@ async function prepareWorkflowRun({ name, graph } = {}) {
 
 // Element definitions are read here rather than taken from the page, so the executable a step runs
 // is always one of ours: the page can choose which element, never what it runs.
+// A native tool that was never built would only fail mid-run, so it is reported with the plan.
+async function missingToolProblems(graph) {
+    const elements = await loadElements().catch(() => new Map());
+    const problems = [];
+    for (const node of graph?.nodes ?? []) {
+        const element = elements.get(node.elementId);
+        let executable = null;
+        try {
+            if (element?.exec?.cli) executable = resolveCli(element.exec.cli);
+            else if (element?.exec?.builtin === 'physical_camera_source') executable = usbCameraExecutable();
+        } catch (err) {
+            problems.push(`${node.name}: ${err.message}`);
+        }
+        if (executable && !existsSync(executable)) {
+            problems.push(`${node.name} needs ${path.relative(APP_DIR, executable)}, which is not built. Run cv-cli/build_cli.sh.`);
+        }
+    }
+    return problems;
+}
+
 async function loadElements() {
     const entries = await readdir(SPEC_DIRS.elements, { withFileTypes: true });
     const elements = new Map();
@@ -823,7 +876,82 @@ function resolveCli(relative) {
     const resolved = path.resolve(CLI_DIR, relative);
     const inside = path.relative(CLI_DIR, resolved);
     if (inside.startsWith('..') || path.isAbsolute(inside)) throw new Error(`Tool path not allowed: ${relative}`);
-    return resolved;
+    return findTool(inside, { cliDir: CLI_DIR, nativeDir: NATIVE_DIR, platform: process.platform });
+}
+
+// app.json's usbCameraCli wins; otherwise the native install or per-project build, then the VS Code CMake build folder.
+function usbCameraExecutable() {
+    if (settings.usbCameraCli) return configuredExecutable(settings.usbCameraCli);
+    const cliExecutable = resolveCli('cpp-usb-camera/build/usb_camera_cli');
+    const vscodeExecutable = path.join(APP_DIR, 'build', 'cpp-usb-camera', executableName('usb_camera_cli'));
+    return existsSync(cliExecutable) ? cliExecutable : vscodeExecutable;
+}
+
+// Lists the native tools that are present: the unified install (native/bin) first, then any
+// per-project builds in cv-cli/cpp-*/build and the VS Code build/ folder.
+async function listNativeTools() {
+    const tools = [];
+    const add = (found, project) => {
+        for (const tool of found) {
+            if (!tools.some(existing => existing.name === tool.name)) tools.push({ name: tool.name, project, built: tool.built });
+        }
+    };
+    add(scanToolFolder(path.join(NATIVE_DIR, 'bin')), 'native');
+    for (const root of [CLI_DIR, path.join(APP_DIR, 'build')]) {
+        let projects = [];
+        try { projects = await readdir(root, { withFileTypes: true }); } catch { continue; }
+        for (const project of projects.filter(entry => entry.isDirectory() && entry.name.startsWith('cpp-'))) {
+            const buildDir = root === CLI_DIR ? path.join(root, project.name, 'build') : path.join(root, project.name);
+            add(scanToolFolder(buildDir), project.name);
+            add(scanToolFolder(path.join(buildDir, 'Release')), project.name);
+        }
+    }
+    return tools.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// OpenCV's version as the native tools were built against it: native-info.json from the unified
+// build, otherwise a per-project CMake cache.
+async function openCvVersion() {
+    try {
+        const info = JSON.parse(await readFile(path.join(NATIVE_DIR, 'native-info.json'), 'utf8'));
+        if (info.opencv) return info.opencv;
+    } catch { /* fall back to CMake caches */ }
+    const caches = [path.join(CLI_DIR, 'cpp-sift', 'build', 'CMakeCache.txt'), path.join(APP_DIR, 'build', 'cpp-usb-camera', 'CMakeCache.txt')];
+    for (const cache of caches) {
+        try {
+            const text = await readFile(cache, 'utf8');
+            const dir = text.match(/^OpenCV_DIR:PATH=(.+)$/m)?.[1];
+            const fromDir = dir?.match(/opencv\/(\d+\.\d+\.\d+)/i)?.[1];
+            if (fromDir) return fromDir;
+            if (dir) {
+                const config = await readFile(path.join(dir, 'OpenCVConfig-version.cmake'), 'utf8').catch(() => '');
+                const version = config.match(/set\(OpenCV_VERSION (\d+\.\d+\.\d+)\)/)?.[1];
+                if (version) return version;
+            }
+        } catch { /* try the next cache */ }
+    }
+    return 'unknown';
+}
+
+function toolStatus(executable) {
+    if (!executable.includes(path.sep)) return { path: executable, found: null };
+    return { path: executable, found: existsSync(executable) };
+}
+
+async function aboutInfo() {
+    let buildDate = PACKAGE_INFO.buildDate;
+    if (!buildDate) buildDate = (await stat(path.join(APP_DIR, 'main.js'))).mtime.toISOString();
+    return {
+        name: app.getName(), version: app.getVersion(), buildDate,
+        electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node,
+        opencv: await openCvVersion(), platform: `${process.platform} ${process.arch}`,
+        nativeTools: await listNativeTools(),
+        external: {
+            blender: toolStatus(BLENDER_PATH), python: toolStatus(PYTHON_PATH),
+            cliDir: { path: CLI_DIR, found: existsSync(CLI_DIR) }, nativeDir: { path: NATIVE_DIR, found: existsSync(NATIVE_DIR) }
+        },
+        settingsFiles: [path.join(APP_DIR, 'app.json'), path.join(app.getPath('userData'), 'app.json')]
+    };
 }
 
 const IMAGE_NAME_ORDER = (a, b) => a.localeCompare(b, undefined, { numeric: true });
@@ -870,16 +998,13 @@ async function resolveSourceFrames(steps, elements, runDir, log) {
             }, {
                 appDir: APP_DIR, modelsDir: MODELS_DIR, runDir, isAllowed: isInAllowedFolder,
                 render: (exe, args, options) => executeCli(exe, args, options, log, step.name),
-                blender: existsSync('/Applications/Blender.app/Contents/MacOS/Blender')
-                    ? '/Applications/Blender.app/Contents/MacOS/Blender' : 'blender'
+                blender: BLENDER_PATH
             });
             resolved.set(step.nodeId, { port: 'image', files, repeat: files.length === 1 });
             if (files.length > 1) frameCount = frameCount === null ? files.length : Math.min(frameCount, files.length);
         } else if (builtin === 'physical_camera_source') {
-            const cliExecutable = resolveCli('cpp-usb-camera/build/usb_camera_cli');
-            const vscodeExecutable = path.join(APP_DIR, 'build', 'cpp-usb-camera', 'usb_camera_cli');
             const { batchDir, files } = await capturePhysicalCamera(step.params ?? {}, {
-                executable: existsSync(cliExecutable) ? cliExecutable : vscodeExecutable,
+                executable: usbCameraExecutable(),
                 appDir: APP_DIR,
                 timeout: TOOL_TIMEOUT_MS,
                 capture: (exe, args, options) => executeCli(exe, args, options, log, step.name)
@@ -907,9 +1032,7 @@ async function resolveSourceFrames(steps, elements, runDir, log) {
             if (shouldRegenerate) {
                 const scriptPath = path.join(sceneFolder, 'build_ingress_scene.py');
                 if (existsSync(scriptPath)) {
-                    const blenderBin = existsSync('/Applications/Blender.app/Contents/MacOS/Blender')
-                        ? '/Applications/Blender.app/Contents/MacOS/Blender'
-                        : 'blender';
+                    const blenderBin = BLENDER_PATH;
 
                     const cliArgs = ['--background', '--python-exit-code', '1', '--python', scriptPath, '--'];
                     if (step.params.start != null) cliArgs.push('--start', String(step.params.start));
@@ -1283,7 +1406,7 @@ async function runVisionCli(action, imagePath, params = {}, log = () => {}) {
     // execFile (no shell) so the path is passed as a plain argument, never interpreted as a command.
     const keypointsPath = cli.keypoints ? outputPath.replace(/\.png$/, '.keypoints.json') : null;
     const actionArgs = [...(keypointsPath ? [keypointsPath] : []), ...buildArgs(cli, params)];
-    await executeCli(path.join(CLI_DIR, cli.exe), [inputPath, outputPath, ...actionArgs], { timeout: TOOL_TIMEOUT_MS }, log, action);
+    await executeCli(resolveCli(cli.exe), [inputPath, outputPath, ...actionArgs], { timeout: TOOL_TIMEOUT_MS }, log, action);
     const timingMs = Math.round(performance.now() - started);
 
     const bytes = await readFile(outputPath);
@@ -1348,22 +1471,132 @@ async function openSurfaceWindow(parent, imagePath) {
     return { name: path.basename(resolved) };
 }
 
-function createWindow () {
+const APP_ICON = path.join(APP_DIR, 'build-resources', 'icon.png');
+let mainWindow = null;
+let aboutWindow = null;
+let helpWindow = null;
+
+function showSplash() {
+    const splash = new BrowserWindow({
+        width: 440, height: 320, frame: false, transparent: true, resizable: false, movable: false,
+        alwaysOnTop: true, show: false, skipTaskbar: true, hasShadow: false, center: true
+    });
+    splash.loadFile(path.join(APP_DIR, 'splash.html'));
+    splash.once('ready-to-show', () => splash.show());
+    return splash;
+}
+
+function createWindow ({ splash = null } = {}) {
     const window = new BrowserWindow({
         title: 'Orbital Eyes',
-        width: 1024,
-        height: 624,
+        width: 1440,
+        height: 900,
+        minWidth: 1024,
+        minHeight: 640,
+        show: false,
+        backgroundColor: '#0f1a30',
+        icon: APP_ICON,
         webPreferences: {
             preload: path.join(APP_DIR, 'preload.cjs')
         }
     });
 
+    const shownAt = Date.now();
+    window.once('ready-to-show', () => {
+        // Keep the splash up briefly so it reads as intentional rather than a flicker.
+        setTimeout(() => {
+            if (splash && !splash.isDestroyed()) splash.close();
+            window.show();
+        }, Math.max(0, 900 - (Date.now() - shownAt)));
+    });
+    window.on('closed', () => { if (mainWindow === window) mainWindow = null; });
+
     window.loadFile(path.join(APP_DIR, 'index.html'));
-    window.webContents.openDevTools(); // handy while learning: shows console errors like missing images
+    if (DEV_MODE) window.webContents.openDevTools();
+    mainWindow = window;
     return window;
 }
 
+function infoWindow(file, options) {
+    const window = new BrowserWindow({
+        parent: mainWindow ?? undefined, icon: APP_ICON, backgroundColor: '#0f1a30', show: false,
+        webPreferences: { preload: path.join(APP_DIR, 'info-preload.cjs') },
+        ...options
+    });
+    window.setMenuBarVisibility(false);
+    window.once('ready-to-show', () => window.show());
+    // External links in Help open in the browser, never inside the app.
+    window.webContents.setWindowOpenHandler(({ url }) => {
+        if (/^https?:/i.test(url)) shell.openExternal(url);
+        return { action: 'deny' };
+    });
+    window.webContents.on('will-navigate', event => event.preventDefault());
+    window.loadFile(path.join(APP_DIR, file));
+    return window;
+}
+
+function showAbout() {
+    if (aboutWindow && !aboutWindow.isDestroyed()) return aboutWindow.focus();
+    aboutWindow = infoWindow('about.html', { title: 'About Orbital Eyes', width: 560, height: 620, resizable: false, minimizable: false });
+}
+
+function showHelp() {
+    if (helpWindow && !helpWindow.isDestroyed()) return helpWindow.focus();
+    helpWindow = infoWindow('help.html', { title: 'Orbital Eyes Help', width: 980, height: 760 });
+}
+
+// Help shows the project's Markdown documents; only .md files inside the app folder are readable.
+async function readDoc(relativePath) {
+    const resolved = path.resolve(APP_DIR, String(relativePath ?? ''));
+    const inside = path.relative(APP_DIR, resolved);
+    if (inside.startsWith('..') || path.isAbsolute(inside) || path.extname(resolved).toLowerCase() !== '.md') {
+        throw new Error('Only Markdown documents in the app folder can be shown.');
+    }
+    return { path: inside.split(path.sep).join('/'), content: await readFile(resolved, 'utf8') };
+}
+
+function buildMenu() {
+    const isMac = process.platform === 'darwin';
+    const template = [
+        ...(isMac ? [{
+            label: app.name,
+            submenu: [
+                { label: `About ${app.name}`, click: showAbout },
+                { type: 'separator' }, { role: 'services' }, { type: 'separator' },
+                { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }
+            ]
+        }] : []),
+        { role: 'fileMenu' },
+        { role: 'editMenu' },
+        {
+            label: 'View',
+            submenu: [
+                { role: 'reload' }, { role: 'forceReload' }, { role: 'toggleDevTools' }, { type: 'separator' },
+                { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }
+            ]
+        },
+        { role: 'windowMenu' },
+        {
+            role: 'help',
+            submenu: [
+                { label: `${app.name} Help`, accelerator: 'F1', click: showHelp },
+                ...(isMac ? [] : [{ label: `About ${app.name}`, click: showAbout }])
+            ]
+        }
+    ];
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 app.whenReady().then(() => {
+    const splash = showSplash();
+    if (process.platform === 'darwin' && !app.isPackaged && existsSync(APP_ICON)) app.dock?.setIcon(APP_ICON);
+    app.setAboutPanelOptions?.({ applicationName: 'Orbital Eyes', applicationVersion: app.getVersion() });
+    buildMenu();
+
+    ipcMain.handle('app:about', () => aboutInfo());
+    ipcMain.handle('app:openDoc', (_event, relativePath) => readDoc(relativePath));
+    ipcMain.handle('app:showAbout', () => showAbout());
+    ipcMain.handle('app:showHelp', () => showHelp());
 
     ipcMain.handle('composer:catalog', () => sceneStorage.catalog());
     ipcMain.handle('composer:model', (_event, file) => sceneStorage.model(file));
@@ -1403,8 +1636,7 @@ app.whenReady().then(() => {
                 config_json: JSON.stringify(snapshot), camera_name: cameraName
             }, {
                 appDir: APP_DIR, modelsDir: MODELS_DIR, runDir, isAllowed: isInAllowedFolder,
-                blender: existsSync('/Applications/Blender.app/Contents/MacOS/Blender')
-                    ? '/Applications/Blender.app/Contents/MacOS/Blender' : 'blender',
+                blender: BLENDER_PATH,
                 render: (exe, args, options) => executeCli(exe, args, options, log, 'Scene preview')
             });
             return { path: result.files[0], url: pathToFileURL(result.files[0]).href };
@@ -1427,7 +1659,8 @@ app.whenReady().then(() => {
     ipcMain.handle('specs:list', (_event, kind) => listSpecs(kind));
     ipcMain.handle('specs:read', (_event, kind, file) => readSpec(kind, file));
     ipcMain.handle('specs:save', (_event, kind, file, content) => saveSpec(kind, file, content));
-    ipcMain.handle('workflow:prepareRun', (_event, request) => prepareWorkflowRun(request));
+    ipcMain.handle('workflow:prepareRun', async (_event, request) =>
+        prepareWorkflowRun(request, { extraProblems: await missingToolProblems(request?.graph) }));
     ipcMain.handle('workflow:run', (event, request) => runWorkflow(event.sender, request));
     ipcMain.handle('workflow:stop', () => stopWorkflow());
     ipcMain.handle('workflow:open', event => openWorkflowFile(BrowserWindow.fromWebContents(event.sender), event.sender.id));
@@ -1445,7 +1678,7 @@ app.whenReady().then(() => {
         openSurfaceWindow(BrowserWindow.fromWebContents(event.sender), imagePath));
     ipcMain.handle('surface:payload', event => surfacePayloads.get(event.sender.id) ?? null);
 
-    createWindow();
+    createWindow({ splash });
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {

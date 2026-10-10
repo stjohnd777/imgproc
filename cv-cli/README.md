@@ -13,6 +13,35 @@ Most tools print usage when invoked without required arguments; `--help` is
 not universally supported. Zero exit status means success; nonzero means failure.
 See individual sources for exact exit codes.
 
+## Building
+
+[CMakeLists.txt](CMakeLists.txt) in this folder builds every `cpp-*` project
+in one go; each project's own CMakeLists still builds on its own. From the
+repository root, `npm run build:native` runs the `vcpkg` preset from
+[CMakePresets.json](CMakePresets.json) and installs the tools and their shared
+libraries into `native/` (see the top-level Readme). By hand:
+
+```sh
+cd cv-cli
+cmake --preset vcpkg -DVCPKG_TARGET_TRIPLET=arm64-osx-oe   # or x64-windows-oe, x64-linux-oe, ...
+cmake --build --preset vcpkg --parallel
+cmake --install ../build/native-vcpkg --config Release
+```
+
+- [vcpkg.json](vcpkg.json) pins OpenCV (calib3d, features2d, imgcodecs,
+  videoio; no contrib, so `cpp-surf` is skipped) and nlohmann-json.
+- [triplets/](triplets) holds release-only, shared-library triplets
+  (`*-oe`) so that the libraries can be bundled and the build is half as long.
+- The `system` preset uses whatever OpenCV `find_package` finds and does not
+  bundle libraries.
+- Install layout: tools in `bin/` (with the DLLs on Windows), libraries in
+  `lib/` with the RPATH `@loader_path/../lib` (macOS) or `$ORIGIN/../lib`
+  (Linux), and `native-info.json`. On macOS the installed files are re-signed
+  ad hoc.
+
+In the examples below, `cv-cli/cpp-<tool>/build/<tool>_cli` and
+`native/bin/<tool>_cli` are interchangeable.
+
 ## Tools
 
 | CLI | Reference | Workflow | Free-form toolbar |

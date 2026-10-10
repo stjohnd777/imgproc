@@ -21,6 +21,9 @@ yarn-error.log*
 
 # CMake and native build output
 build/
+/native/
+.vcpkg-cache/
+vcpkg_installed/
 **/build/
 CMakeCache.txt
 CMakeFiles/

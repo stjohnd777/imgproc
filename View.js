@@ -2,7 +2,7 @@
 // It never changes the model itself.
 import { cameraParameters } from './camera_parameters.js';
 import { showSceneDialog } from './scene_dialog.js';
-import { ELEMENT_CATEGORIES, elementCategory, fitScale, nodeParameterSummary } from './view_helpers.js';
+import { ELEMENT_CATEGORIES, elementCategory, elementIconName as pickElementIcon, fitScale, nodeParameterSummary } from './view_helpers.js';
 import { buildConsole } from './tab_console.js';
 
 // Custom drag type so only our own tabs are accepted as drops (not text/files dragged in from elsewhere).
@@ -54,6 +54,48 @@ const ICON_SHAPES = {
         ['rect', { x: 16.5, y: 15.5, width: 5, height: 5, rx: 1, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }],
         ['path', { d: 'M7.5 12C12 12 12 6 16.5 6M7.5 12C12 12 12 18 16.5 18', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }]
     ],
+    brain: [
+        ['path', { d: 'M12 5.5v13M12 5.5A3 3 0 0 0 7 6.6a3 3 0 0 0-2.6 4.1A3 3 0 0 0 5.3 16a3 3 0 0 0 3.4 2.9A3 3 0 0 0 12 18.5M12 5.5a3 3 0 0 1 5-1.1 3 3 0 0 1 2.6 4.1 3 3 0 0 1-.9 5.3 3 3 0 0 1-3.4 2.9A3 3 0 0 1 12 18.5', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6, 'stroke-linejoin': 'round' }],
+        ['path', { d: 'M8.5 10.5c1 0 1.8.6 2 1.5M15.5 10.5c-1 0-1.8.6-2 1.5M8 14.5h1.5M14.5 14.5H16', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.4, 'stroke-linecap': 'round' }]
+    ],
+    sliders: [
+        ['path', { d: 'M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.7, 'stroke-linecap': 'round' }],
+        ['circle', { cx: 15, cy: 7, r: 2, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.7 }],
+        ['circle', { cx: 9, cy: 12, r: 2, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.7 }],
+        ['circle', { cx: 17, cy: 17, r: 2, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.7 }]
+    ],
+    grid: [
+        ['path', { d: 'M4 4c5 3 11 3 16 0M4 20c5-3 11-3 16 0M4 4v16M20 4v16M9.3 5.2v13.6M14.7 5.2v13.6M4 12h16', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.5, 'stroke-linejoin': 'round' }]
+    ],
+    edges: [
+        ['path', { d: 'M4 18l4.5-8 3.5 5 2.5-3.5L20 18z', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.7, 'stroke-linejoin': 'round' }],
+        ['path', { d: 'M4 5.5h3M10.5 5.5h3M17 5.5h3', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.7, 'stroke-linecap': 'round' }]
+    ],
+    crosshair: [
+        ['circle', { cx: 12, cy: 12, r: 6, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.7 }],
+        ['path', { d: 'M12 3v4M12 17v4M3 12h4M17 12h4', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.7, 'stroke-linecap': 'round' }],
+        ['circle', { cx: 12, cy: 12, r: 1.4, fill: 'currentColor' }]
+    ],
+    stereo: [
+        ['rect', { x: 2.5, y: 8, width: 7, height: 6, rx: 1.2, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }],
+        ['rect', { x: 14.5, y: 8, width: 7, height: 6, rx: 1.2, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }],
+        ['path', { d: 'M6 14l6 6 6-6M9.5 11h5', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.4, 'stroke-dasharray': '2 1.6', 'stroke-linecap': 'round' }]
+    ],
+    chart: [
+        ['path', { d: 'M4 4v16h16', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.7, 'stroke-linecap': 'round' }],
+        ['path', { d: 'M8 16v-4M12 16V8M16 16v-6', fill: 'none', stroke: 'currentColor', 'stroke-width': 2.2, 'stroke-linecap': 'round' }]
+    ],
+    sparkle: [
+        ['path', { d: 'M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8z', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6, 'stroke-linejoin': 'round' }],
+        ['circle', { cx: 18.5, cy: 18, r: 1.3, fill: 'currentColor' }],
+        ['circle', { cx: 5.5, cy: 18.5, r: 1, fill: 'currentColor' }]
+    ],
+    branch: [
+        ['circle', { cx: 5.5, cy: 12, r: 2, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }],
+        ['circle', { cx: 18.5, cy: 5.5, r: 2, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }],
+        ['circle', { cx: 18.5, cy: 18.5, r: 2, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }],
+        ['path', { d: 'M7.5 12h3c2 0 2.5-6.5 6-6.5M10.5 12c2 0 2.5 6.5 6 6.5', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }]
+    ],
     gear: [
         ['circle', { cx: 12, cy: 12, r: 3, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8 }],
         ['path', { d: 'M12 2.8v2.6M12 18.6v2.6M21.2 12h-2.6M5.4 12H2.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8M18.5 18.5l-1.8-1.8M7.3 7.3L5.5 5.5', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8, 'stroke-linecap': 'round' }]
@@ -85,9 +127,11 @@ function edgePath(p1, p2, fromDirection) {
     };
 }
 
+const ICON_NAMES = new Set(Object.keys(ICON_SHAPES));
+const KIND_ICONS = Object.fromEntries(ELEMENT_KINDS.map(({ kind, icon }) => [kind, icon]));
+
 function elementIconName(element) {
-    if (element.icon in ICON_SHAPES) return element.icon;
-    return ELEMENT_KINDS.find(k => k.kind === element.kind)?.icon ?? 'transform';
+    return pickElementIcon(element, ICON_NAMES, KIND_ICONS);
 }
 
 // Per side bar view: Activity Bar title, spec folder, tree icon, and the field used as a collapsed preview.
@@ -320,6 +364,8 @@ export class View {
             twisty.className = 'palette-twisty';
             twisty.setAttribute('aria-hidden', 'true');
             heading.appendChild(twisty);
+            const categoryIcon = ELEMENT_CATEGORIES.find(entry => entry.category === category)?.icon;
+            if (categoryIcon in ICON_SHAPES) heading.appendChild(createIcon(categoryIcon, 'palette-heading-icon'));
             const headingLabel = document.createElement('span');
             headingLabel.textContent = `${title} (${elements.length})`;
             heading.appendChild(headingLabel);

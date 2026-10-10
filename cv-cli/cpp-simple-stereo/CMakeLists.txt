@@ -13,5 +13,7 @@ target_link_libraries(simple_stereo_cli PRIVATE ${OpenCV_LIBS})
 
 target_include_directories(simple_stereo_cli PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../common
-    /opt/homebrew/include
 )
+
+find_package(nlohmann_json REQUIRED)
+target_link_libraries(simple_stereo_cli PRIVATE nlohmann_json::nlohmann_json)

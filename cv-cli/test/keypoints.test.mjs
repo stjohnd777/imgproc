@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { KeyPoint } from '../../domain.js';
+import { nativeTool } from './tools.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -14,7 +15,7 @@ for (const detector of ['sift', 'orb', 'fast', 'kaze', 'brisk', 'corners', 'surf
         const dir = mkdtempSync(path.join(tmpdir(), 'keypoints-'));
         t.after(() => rmSync(dir, { recursive: true, force: true }));
         const spec = JSON.parse(readFileSync(path.join(root, 'elements', `${detector}.json`)));
-        const exe = path.join(root, 'cv-cli', spec.exec.cli);
+        const exe = nativeTool(spec.exec.cli);
         const input = path.join(root, 'img', 'one.png');
         const preview = path.join(dir, '01_detector__preview.png');
         const jsonPath = path.join(dir, '01_detector__keypoints.json');
@@ -27,6 +28,10 @@ for (const detector of ['sift', 'orb', 'fast', 'kaze', 'brisk', 'corners', 'surf
             assert.notEqual(value, undefined, `unresolved argument ${arg}`);
             return typeof value === 'boolean' ? (value ? '1' : '0') : String(value);
         });
+        if (detector === 'surf' && !existsSync(exe)) {
+            t.skip('SURF tool not built (vcpkg builds omit opencv_contrib nonfree)');
+            return;
+        }
         const first = spawnSync(exe, args, { encoding: 'utf8' });
         if (detector === 'surf' && first.status === 4 && first.stderr.includes('SURF unavailable')) {
             t.skip('Installed OpenCV does not enable SURF nonfree support');

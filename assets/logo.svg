@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Orbital Eyes</title>
+  <defs>
+    <radialGradient id="space" cx="50%" cy="38%" r="75%">
+      <stop offset="0" stop-color="#1d3a6e"/>
+      <stop offset="0.6" stop-color="#0d1b36"/>
+      <stop offset="1" stop-color="#060b18"/>
+    </radialGradient>
+    <linearGradient id="foil" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd977"/>
+      <stop offset="0.5" stop-color="#f2a93b"/>
+      <stop offset="1" stop-color="#c47a1c"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4fa3ff"/>
+      <stop offset="1" stop-color="#1c4fa8"/>
+    </linearGradient>
+    <clipPath id="tile"><rect x="0" y="0" width="1024" height="1024" rx="224"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#tile)">
+    <rect width="1024" height="1024" fill="url(#space)"/>
+    <!-- stars -->
+    <g fill="#ffffff">
+      <circle cx="140" cy="170" r="6" opacity="0.8"/>
+      <circle cx="870" cy="140" r="5" opacity="0.7"/>
+      <circle cx="905" cy="820" r="7" opacity="0.6"/>
+      <circle cx="110" cy="860" r="5" opacity="0.7"/>
+      <circle cx="770" cy="300" r="3" opacity="0.6"/>
+      <circle cx="240" cy="330" r="3" opacity="0.6"/>
+    </g>
+    <!-- orbit ring behind the satellite -->
+    <ellipse cx="512" cy="560" rx="440" ry="150" fill="none" stroke="#7fc4ff" stroke-width="10" opacity="0.35" transform="rotate(-14 512 560)"/>
+
+    <!-- solar panels -->
+    <g stroke="#0b2a5c" stroke-width="8">
+      <rect x="70" y="440" width="250" height="150" rx="14" fill="url(#panel)"/>
+      <rect x="704" y="440" width="250" height="150" rx="14" fill="url(#panel)"/>
+      <path d="M153 440v150M237 440v150M70 515h250M787 440v150M871 440v150M704 515h250" fill="none" opacity="0.7"/>
+    </g>
+    <!-- panel booms -->
+    <rect x="320" y="503" width="62" height="24" fill="#9aa6b8"/>
+    <rect x="642" y="503" width="62" height="24" fill="#9aa6b8"/>
+
+    <!-- antenna -->
+    <line x1="512" y1="330" x2="512" y2="230" stroke="#c9d3e0" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="512" cy="214" r="26" fill="#ff6b6b"/>
+
+    <!-- body -->
+    <rect x="372" y="330" width="280" height="350" rx="56" fill="url(#foil)" stroke="#8a5310" stroke-width="10"/>
+
+    <!-- eyes -->
+    <g>
+      <ellipse cx="455" cy="470" rx="54" ry="64" fill="#ffffff" stroke="#3a2406" stroke-width="8"/>
+      <ellipse cx="569" cy="470" rx="54" ry="64" fill="#ffffff" stroke="#3a2406" stroke-width="8"/>
+      <circle cx="468" cy="482" r="28" fill="#13233f"/>
+      <circle cx="582" cy="482" r="28" fill="#13233f"/>
+      <circle cx="478" cy="470" r="9" fill="#ffffff"/>
+      <circle cx="592" cy="470" r="9" fill="#ffffff"/>
+    </g>
+    <!-- smile -->
+    <path d="M462 590q50 42 100 0" fill="none" stroke="#3a2406" stroke-width="12" stroke-linecap="round"/>
+    <!-- thruster nozzle -->
+    <path d="M472 680h80l-14 46h-52z" fill="#7d8796" stroke="#3f4652" stroke-width="6"/>
+  </g>
+</svg>

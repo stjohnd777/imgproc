@@ -283,6 +283,66 @@ switched for the new projects and restored to:
 }
 ```
 
+## Beta preparation (0.9.0-beta.1) - pending changes
+
+- Branded as **Orbital Eyes** (`package.json` name/productName/version,
+  `app.setName`). DevTools open only with `npm run dev` / `--dev` /
+  `ORBITAL_EYES_DEV=1`.
+- Placeholder logo (satellite with eyes): `assets/logo.svg`, PNGs, and
+  `build-resources/icon.icns`. Splash window (`splash.html`); main window
+  1440x900, min 1024x640.
+- About window (`about.html`/`about.js`): version, build date, OpenCV,
+  Electron/Node, settings files, tool paths, built native tools.
+  Help window (`help.html`/`help.js`/`markdown.js`) renders `help.md` and
+  linked repository Markdown. App menu with Help (F1); nav-bar Help/About
+  buttons; SVG nav icons; per-category palette icons (AI/ML uses a brain).
+- `app.json` gained `cliDir`, `blenderPath`, `pythonPath`, `usbCameraCli`;
+  a per-user `userData/app.json` overrides it. Blender paths are centralized.
+  Missing native tools are reported as Plan problems.
+- electron-builder: `npm run pack` / `npm run dist`; `asar` is disabled so
+  CLIs and Blender scripts run from the bundle. Packaged app verified to
+  launch and run a native CLI. Not signed or notarized yet.
+- Tests: `npm test` runs all Node tests (118 passing); `beta_shell.test.js`
+  covers the new shell pieces.
+- Next iteration: ship 2-3 example workflows, then real logo/branding.
+  Stereo Pose Estimator remains a stub until the CNN exists.
+
+## Cross-platform build (macOS, Windows, Linux) - pending changes
+
+- One CMake build for all tools: `cv-cli/CMakeLists.txt`, presets `vcpkg`
+  (bundled, redistributable) and `system` (local OpenCV, not bundled) in
+  `cv-cli/CMakePresets.json`. `cv-cli/vcpkg.json` pins OpenCV 4.10.0 at the
+  vcpkg baseline `be1ae8e5`; contrib is deliberately omitted (it pulls hdf5,
+  tesseract, curl and protobuf, and SURF needs nonfree), so `cpp-surf` is
+  skipped in vcpkg builds. Release-only shared triplets are in
+  `cv-cli/triplets/*-oe.cmake`.
+- `npm run build:native` (`scripts/build-native.mjs`) configures, builds and
+  installs into `native/` (`bin/`, `lib/`, `native-info.json`); it picks the
+  triplet from platform/arch. `npm run smoke:native` runs nine tools on
+  `img/one.png`. `prepack`/`predist` run `verify:native` (30+ tools required).
+- On macOS the install re-signs ad hoc (install-time rpath edits break the
+  linker signature). Verified: 33 tools, 17 dylibs in `native/lib`, rpath
+  `@loader_path/../lib`, no Homebrew references, every file passes
+  `codesign -v`.
+- `native_tools.js` (pure, tested) resolves tools as `native/bin/<name>[.exe]`,
+  then `cv-cli/cpp-*/build/`, then `build/Release/`; it also provides the
+  per-OS Blender and Python defaults. `main.js` uses it for workflow steps,
+  legacy actions, USB camera, the About tool list and the OpenCV version;
+  `app.json` gained `nativeDir`.
+- Tests resolve tools through `cv-cli/test/tools.mjs` (same order, plus the
+  superbuild tree for `stereo_calibration_fixture`); the SURF test skips when
+  no SURF tool exists. Verified with all per-project builds hidden: 125 pass,
+  1 skipped.
+- Packaging: `native/**/*` replaces the old per-project globs; Windows NSIS
+  (`build-resources/icon.ico`), Linux AppImage + tar.gz; `dist:mac`,
+  `dist:win`, `dist:linux`.
+- CI: `.github/workflows/build.yml` builds, smoke-tests, tests and packages on
+  macos-14, ubuntu-22.04 and windows-2022 with a cached vcpkg binary cache.
+  Windows has not been run yet; expect first-run fixes (MSVC warnings or
+  POSIX assumptions in tests).
+- Docker: `docker/linux-build.Dockerfile` + `docker/linux-build.sh` build and
+  package Linux from any host (see `docker/README.md`).
+
 ## Next work and cautions
 
 1. **Dedicated robust Stereo Range & Bearing remains proposed.**
